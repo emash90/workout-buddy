@@ -1,12 +1,11 @@
-version: '3.8'
 
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: fitsync-postgres
+    container_name: workout-buddy-postgres
     restart: always
     environment:
-      POSTGRES_DB: fitsync_dev
+      POSTGRES_DB: workout_buddy_dev
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
@@ -15,19 +14,72 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/src/database/init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d fitsync_dev"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d workout_buddy_dev"]
       interval: 30s
       timeout: 10s
       retries: 5
+    networks:
+      - workout-buddy-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: workout-buddy-backend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: workout_buddy_dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - workout-buddy-network
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: workout-buddy-client
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - workout-buddy-network
 
   adminer:
     image: adminer
-    container_name: fitsync-adminer
+    container_name: workout-buddy-adminer
     restart: always
     ports:
       - "8080:8080"
     depends_on:
       - postgres
+    networks:
+      - workout-buddy-network
 
 volumes:
   postgres_data:
+
+networks:
+  workout-buddy-network:
+    driver: bridge
