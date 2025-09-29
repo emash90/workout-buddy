@@ -19,8 +19,8 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Remove dev dependencies to reduce image size
-RUN npm prune --production
+# Remove dev dependencies only in production
+RUN if [ "$NODE_ENV" = "production" ]; then npm prune --production; fi
 
 # Expose port
 EXPOSE 3000
@@ -29,5 +29,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:3000/health || exit 1
 
-# Start the application
-CMD ["npm", "run", "start:prod"]
+# Start the application based on NODE_ENV
+CMD ["sh", "-c", "if [ \"$NODE_ENV\" = \"production\" ]; then npm run start:prod; else npm run start:dev; fi"]
