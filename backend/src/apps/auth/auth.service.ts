@@ -1,4 +1,5 @@
 import { Injectable, UnauthorizedException, ConflictException, NotFoundException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { PasswordService } from '../../common/services';
 import { LoginDto, SignupDto, AuthResponseDto } from './dto';
@@ -8,6 +9,7 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly passwordService: PasswordService,
+    private readonly jwtService: JwtService,
   ) {}
 
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
@@ -25,8 +27,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    const payload = { sub: user.id, email: user.email };
+    const access_token = this.jwtService.sign(payload);
+
     return {
-      access_token: 'temp-token', // TODO: Generate actual JWT token
+      access_token,
       user: {
         id: user.id,
         email: user.email,
@@ -56,8 +61,11 @@ export class AuthService {
       lastName,
     });
 
+    const payload = { sub: user.id, email: user.email };
+    const access_token = this.jwtService.sign(payload);
+
     return {
-      access_token: 'temp-token', // TODO: Generate actual JWT token
+      access_token,
       user: {
         id: user.id,
         email: user.email,

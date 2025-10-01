@@ -29,6 +29,10 @@ services:
     restart: always
     ports:
       - "3000:3000"
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/tsconfig.json:/app/tsconfig.json
+      - ./backend/tsconfig.build.json:/app/tsconfig.build.json
     environment:
       NODE_ENV: development
       PORT: 3000
@@ -37,6 +41,10 @@ services:
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
       DB_NAME: workout_buddy_dev
+      FITBIT_CLIENT_ID: ${FITBIT_CLIENT_ID}
+      FITBIT_CLIENT_SECRET: ${FITBIT_CLIENT_SECRET}
+      FITBIT_REDIRECT_URI: ${FITBIT_REDIRECT_URI:-http://localhost:3000/fitbit/callback}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
     depends_on:
       postgres:
         condition: service_healthy

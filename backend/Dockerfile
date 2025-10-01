@@ -16,11 +16,8 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build the application
-RUN npm run build
-
-# Remove dev dependencies only in production
-RUN if [ "$NODE_ENV" = "production" ]; then npm prune --production; fi
+# Build the application only in production
+RUN if [ "$NODE_ENV" = "production" ]; then npm run build && npm prune --production; fi
 
 # Expose port
 EXPOSE 3000
