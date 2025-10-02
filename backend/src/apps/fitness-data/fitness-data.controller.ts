@@ -10,7 +10,16 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { FitnessDataService } from './fitness-data.service';
-import { SyncRequestDto, SyncResponseDto, HistoricalSyncDto } from './dto';
+import {
+  SyncRequestDto,
+  SyncResponseDto,
+  HistoricalSyncDto,
+  WeeklySummaryDto,
+  MonthlySummaryDto,
+  SleepSummaryDto,
+  WeightTrendDto,
+  DashboardDto,
+} from './dto';
 
 @ApiTags('Fitness Data')
 @Controller('fitness-data')
@@ -149,7 +158,7 @@ export class FitnessDataController {
     summary: 'Get weekly activity summary',
     description: 'Get aggregated activity data for the past 7 days'
   })
-  @ApiResponse({ status: 200, description: 'Weekly summary retrieved successfully' })
+  @ApiResponse({ status: 200, description: 'Weekly summary retrieved successfully', type: WeeklySummaryDto })
   async getWeeklySummary(@Request() req) {
     const userId = req.user.userId;
     return this.fitnessDataService.getWeeklyActivitySummary(userId);
@@ -160,7 +169,7 @@ export class FitnessDataController {
     summary: 'Get monthly activity summary',
     description: 'Get aggregated activity data for the past 30 days'
   })
-  @ApiResponse({ status: 200, description: 'Monthly summary retrieved successfully' })
+  @ApiResponse({ status: 200, description: 'Monthly summary retrieved successfully', type: MonthlySummaryDto })
   async getMonthlySummary(@Request() req) {
     const userId = req.user.userId;
     return this.fitnessDataService.getMonthlyActivitySummary(userId);
@@ -172,7 +181,7 @@ export class FitnessDataController {
     description: 'Get sleep quality metrics for a specified number of days'
   })
   @ApiQuery({ name: 'days', required: false, description: 'Number of days to analyze', example: 7 })
-  @ApiResponse({ status: 200, description: 'Sleep summary retrieved successfully' })
+  @ApiResponse({ status: 200, description: 'Sleep summary retrieved successfully', type: SleepSummaryDto })
   async getSleepSummary(@Request() req, @Query('days') days?: number) {
     const userId = req.user.userId;
     return this.fitnessDataService.getSleepQualitySummary(userId, days || 7);
@@ -184,7 +193,7 @@ export class FitnessDataController {
     description: 'Analyze weight changes over a specified number of days'
   })
   @ApiQuery({ name: 'days', required: false, description: 'Number of days to analyze', example: 30 })
-  @ApiResponse({ status: 200, description: 'Weight trend retrieved successfully' })
+  @ApiResponse({ status: 200, description: 'Weight trend retrieved successfully', type: WeightTrendDto })
   async getWeightTrend(@Request() req, @Query('days') days?: number) {
     const userId = req.user.userId;
     return this.fitnessDataService.getWeightTrend(userId, days || 30);
@@ -195,7 +204,7 @@ export class FitnessDataController {
     summary: 'Get complete dashboard',
     description: 'Get all summary data in a single request (weekly, monthly, sleep, weight)'
   })
-  @ApiResponse({ status: 200, description: 'Dashboard data retrieved successfully' })
+  @ApiResponse({ status: 200, description: 'Dashboard data retrieved successfully', type: DashboardDto })
   async getDashboard(@Request() req) {
     const userId = req.user.userId;
     return this.fitnessDataService.getDashboard(userId);
