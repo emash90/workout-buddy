@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -12,8 +13,23 @@ async function bootstrap() {
     transform: true, // Automatically transform payloads to DTO instances
   }));
 
+  // Swagger API Documentation
+  const config = new DocumentBuilder()
+    .setTitle('Workout Buddy API')
+    .setDescription('Backend API for Workout Buddy fitness tracking application with Fitbit integration')
+    .setVersion('1.0')
+    .addTag('Authentication', 'User authentication endpoints')
+    .addTag('Fitbit Integration', 'Fitbit OAuth and data endpoints')
+    .addTag('Fitness Data', 'Fitness data synchronization and retrieval')
+    .addBearerAuth()
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
+
   const port = process.env.PORT;
   await app.listen(port ?? 3000);
   console.log(`app running on port ${port}`);
+  console.log(`Swagger documentation available at http://localhost:${port}/api`);
 }
 bootstrap();
