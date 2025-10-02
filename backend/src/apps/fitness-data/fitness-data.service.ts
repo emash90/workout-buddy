@@ -260,6 +260,192 @@ export class FitnessDataService {
     });
   }
 
+  // ===== AGGREGATION METHODS =====
+
+  async getWeeklyActivitySummary(userId: string) {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 7);
+
+    const activities = await this.activityRepo.find({
+      where: {
+        userId,
+        date: Between(startDate, endDate),
+      },
+    });
+
+    if (activities.length === 0) {
+      return {
+        period: 'week',
+        startDate,
+        endDate,
+        totalSteps: 0,
+        averageSteps: 0,
+        totalCalories: 0,
+        totalActiveMinutes: 0,
+        daysActive: 0,
+      };
+    }
+
+    const totalSteps = activities.reduce((sum, a) => sum + a.steps, 0);
+    const totalCalories = activities.reduce((sum, a) => sum + a.calories, 0);
+    const totalActiveMinutes = activities.reduce((sum, a) => sum + a.activeMinutes, 0);
+    const daysActive = activities.filter(a => a.steps > 0).length;
+
+    return {
+      period: 'week',
+      startDate,
+      endDate,
+      totalSteps,
+      averageSteps: Math.round(totalSteps / 7),
+      totalCalories: Math.round(totalCalories),
+      totalActiveMinutes,
+      daysActive,
+    };
+  }
+
+  async getMonthlyActivitySummary(userId: string) {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+
+    const activities = await this.activityRepo.find({
+      where: {
+        userId,
+        date: Between(startDate, endDate),
+      },
+    });
+
+    if (activities.length === 0) {
+      return {
+        period: 'month',
+        startDate,
+        endDate,
+        totalSteps: 0,
+        averageSteps: 0,
+        totalCalories: 0,
+        totalActiveMinutes: 0,
+        daysActive: 0,
+      };
+    }
+
+    const totalSteps = activities.reduce((sum, a) => sum + a.steps, 0);
+    const totalCalories = activities.reduce((sum, a) => sum + a.calories, 0);
+    const totalActiveMinutes = activities.reduce((sum, a) => sum + a.activeMinutes, 0);
+    const daysActive = activities.filter(a => a.steps > 0).length;
+
+    return {
+      period: 'month',
+      startDate,
+      endDate,
+      totalSteps,
+      averageSteps: Math.round(totalSteps / 30),
+      totalCalories: Math.round(totalCalories),
+      totalActiveMinutes,
+      daysActive,
+    };
+  }
+
+  async getSleepQualitySummary(userId: string, days: number = 7) {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const sleepRecords = await this.sleepRepo.find({
+      where: {
+        userId,
+        dateOfSleep: Between(startDate, endDate),
+      },
+    });
+
+    if (sleepRecords.length === 0) {
+      return {
+        period: `${days} days`,
+        startDate,
+        endDate,
+        averageDuration: 0,
+        averageEfficiency: 0,
+        averageDeepSleep: 0,
+        totalNights: 0,
+      };
+    }
+
+    const totalDuration = sleepRecords.reduce((sum, s) => sum + s.duration, 0);
+    const totalEfficiency = sleepRecords.reduce((sum, s) => sum + s.efficiency, 0);
+    const totalDeepSleep = sleepRecords.reduce((sum, s) => sum + (s.deepSleepMinutes || 0), 0);
+
+    return {
+      period: `${days} days`,
+      startDate,
+      endDate,
+      averageDuration: Math.round(totalDuration / sleepRecords.length),
+      averageEfficiency: Math.round(totalEfficiency / sleepRecords.length),
+      averageDeepSleep: Math.round(totalDeepSleep / sleepRecords.length),
+      totalNights: sleepRecords.length,
+    };
+  }
+
+  async getWeightTrend(userId: string, days: number = 30) {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const weightRecords = await this.weightRepo.find({
+      where: {
+        userId,
+        date: Between(startDate, endDate),
+      },
+      order: { date: 'ASC' },
+    });
+
+    if (weightRecords.length < 2) {
+      return {
+        period: `${days} days`,
+        startDate,
+        endDate,
+        startWeight: null,
+        endWeight: null,
+        change: 0,
+        trend: 'insufficient_data',
+      };
+    }
+
+    const startWeight = weightRecords[0].weight;
+    const endWeight = weightRecords[weightRecords.length - 1].weight;
+    const change = endWeight - startWeight;
+
+    let trend = 'stable';
+    if (change > 0.5) trend = 'gaining';
+    else if (change < -0.5) trend = 'losing';
+
+    return {
+      period: `${days} days`,
+      startDate,
+      endDate,
+      startWeight,
+      endWeight,
+      change: Math.round(change * 10) / 10,
+      trend,
+    };
+  }
+
+  async getDashboard(userId: string) {
+    const [weeklyActivity, monthlyActivity, sleepSummary, weightTrend] = await Promise.all([
+      this.getWeeklyActivitySummary(userId),
+      this.getMonthlyActivitySummary(userId),
+      this.getSleepQualitySummary(userId, 7),
+      this.getWeightTrend(userId, 30),
+    ]);
+
+    return {
+      weeklyActivity,
+      monthlyActivity,
+      sleepSummary,
+      weightTrend,
+      generatedAt: new Date(),
+    };
+  }
+
   // ===== HELPER METHODS =====
 
   private transformActivityData(fitbitResponse: any, userId: string, date: string): Partial<ActivityData> {
