@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Target, Flame, Footprints, Clock, Heart, Moon, Activity } from 'lucide-react';
 import { useDashboardStats, useWeeklyActivity } from '../hooks/useFitnessData';
 import Header from '../components/Header';
@@ -6,6 +7,7 @@ import { Sidebar, StatCard, Card, ChartBar, MetricItem } from '../components/ui'
 const Dashboard = () => {
   const { data: stats, refetch: refetchStats } = useDashboardStats();
   const { data: weeklyData, refetch: refetchWeekly } = useWeeklyActivity();
+  const [weeklyMetric, setWeeklyMetric] = useState<'steps' | 'calories'>('steps');
 
   const handleSyncComplete = async () => {
     await Promise.all([refetchStats(), refetchWeekly()]);
@@ -118,26 +120,59 @@ const Dashboard = () => {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-bold text-gray-900">Weekly Activity</h2>
                 <div className="flex items-center space-x-2">
-                  <button className="px-3 py-1 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg">
+                  <button
+                    onClick={() => setWeeklyMetric('steps')}
+                    className={`px-3 py-1 text-sm font-medium rounded-lg transition-colors ${
+                      weeklyMetric === 'steps'
+                        ? 'text-blue-600 bg-blue-50'
+                        : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
                     Steps
                   </button>
-                  <button className="px-3 py-1 text-sm font-medium text-gray-600 hover:bg-gray-50 rounded-lg">
+                  <button
+                    onClick={() => setWeeklyMetric('calories')}
+                    className={`px-3 py-1 text-sm font-medium rounded-lg transition-colors ${
+                      weeklyMetric === 'calories'
+                        ? 'text-orange-600 bg-orange-50'
+                        : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
                     Calories
                   </button>
                 </div>
               </div>
 
-              <ChartBar
-                data={displayWeeklyData.map((d) => ({ label: d.day, value: d.steps }))}
-                color="from-blue-500 to-blue-400"
-                height={256}
-              />
+              <div className="mb-8">
+                <ChartBar
+                  data={displayWeeklyData.map((d) => ({
+                    label: d.day,
+                    value: weeklyMetric === 'steps' ? d.steps : d.calories,
+                  }))}
+                  color={weeklyMetric === 'steps' ? 'from-blue-500 to-blue-400' : 'from-orange-500 to-rose-600'}
+                  height={256}
+                  showGridLines={true}
+                  showValues={false}
+                  showTooltip={true}
+                />
+              </div>
 
-              <div className="mt-6 flex items-center justify-between text-sm">
+              <div className="mt-2 flex items-center justify-between text-sm">
                 <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-blue-500 rounded"></div>
+                  <div
+                    className={`w-3 h-3 rounded ${
+                      weeklyMetric === 'steps' ? 'bg-blue-500' : 'bg-orange-500'
+                    }`}
+                  ></div>
                   <span className="text-gray-600">
-                    Avg: {Math.round(displayWeeklyData.reduce((acc, d) => acc + d.steps, 0) / displayWeeklyData.length).toLocaleString()} steps
+                    Avg:{' '}
+                    {Math.round(
+                      displayWeeklyData.reduce(
+                        (acc, d) => acc + (weeklyMetric === 'steps' ? d.steps : d.calories),
+                        0
+                      ) / displayWeeklyData.length
+                    ).toLocaleString()}{' '}
+                    {weeklyMetric === 'steps' ? 'steps' : 'kcal'}
                   </span>
                 </div>
                 <div className="text-gray-500">Last 7 days</div>

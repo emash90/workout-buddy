@@ -19,6 +19,7 @@ import {
   SleepSummaryDto,
   WeightTrendDto,
   DashboardDto,
+  WeeklyBreakdownDto,
 } from './dto';
 
 @ApiTags('Fitness Data')
@@ -173,6 +174,17 @@ export class FitnessDataController {
   async getWeeklySummary(@Request() req) {
     const userId = req.user.userId;
     return this.fitnessDataService.getWeeklyActivitySummary(userId);
+  }
+
+  @Get('activities/weekly-breakdown')
+  @ApiOperation({
+    summary: 'Get weekly activity breakdown',
+    description: 'Get daily activity data for the past 7 days (for charts)'
+  })
+  @ApiResponse({ status: 200, description: 'Weekly breakdown retrieved successfully', type: WeeklyBreakdownDto })
+  async getWeeklyBreakdown(@Request() req) {
+    const userId = req.user.userId;
+    return this.fitnessDataService.getWeeklyActivityBreakdown(userId);
   }
 
   @Get('summary/monthly')

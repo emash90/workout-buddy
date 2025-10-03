@@ -9,12 +9,12 @@ import {
   Zap,
   MapPin,
 } from 'lucide-react';
-import { useActivityStats, useHourlyActivity } from '../hooks/useFitnessData';
+import { useActivityStats, useWeeklyActivity } from '../hooks/useFitnessData';
 import { fitbitService } from '../services/fitbitService';
 import { fitnessService } from '../services/fitnessService';
 import type { FitbitConnectionStatus } from '../services/fitbitService';
 import Header from '../components/Header';
-import { Sidebar, StatCard, Card, CardFooter, EmptyState, TimeRangeSelector, ChartBar, MetricItem } from '../components/ui';
+import { Sidebar, StatCard, Card, CardFooter, EmptyState, TimeRangeSelector, MetricItem } from '../components/ui';
 
 const Activity = () => {
   const [timeRange, setTimeRange] = useState('day');
@@ -22,11 +22,11 @@ const Activity = () => {
   const [aggregatedStats, setAggregatedStats] = useState<any>(null);
 
   const { data: activityStats, refetch: refetchActivity } = useActivityStats();
-  const { data: hourlyData, refetch: refetchHourly } = useHourlyActivity();
+  const { data: weeklyData, refetch: refetchWeekly } = useWeeklyActivity();
 
   const handleSyncComplete = async () => {
     // Refetch data after sync
-    await Promise.all([refetchActivity(), refetchHourly()]);
+    await Promise.all([refetchActivity(), refetchWeekly()]);
   };
 
   useEffect(() => {
@@ -100,7 +100,8 @@ const Activity = () => {
     floorsGoal: timeRange === 'week' ? 70 : 300, // 10 * 7 or 10 * 30
   };
 
-  const weeklyProgress = [
+  // Use actual weekly data from API
+  const defaultWeeklyProgress = [
     { day: 'Mon', steps: 0, distance: 0, calories: 0 },
     { day: 'Tue', steps: 0, distance: 0, calories: 0 },
     { day: 'Wed', steps: 0, distance: 0, calories: 0 },
@@ -110,6 +111,35 @@ const Activity = () => {
     { day: 'Sun', steps: 0, distance: 0, calories: 0 },
   ];
 
+  const weeklyProgress = Array.isArray(weeklyData)
+    ? weeklyData.map(d => ({
+        day: d.day,
+        steps: d.steps,
+        distance: 0, // Distance not in weekly data - could be added to backend
+        calories: d.calories,
+      }))
+    : defaultWeeklyProgress;
+
+  // Calculate current streak (consecutive days from end of week backwards)
+  const calculateCurrentStreak = () => {
+    const goalSteps = displayStats.stepsGoal || 10000;
+    let streak = 0;
+
+    // Start from the most recent day and go backwards
+    for (let i = weeklyProgress.length - 1; i >= 0; i--) {
+      if (weeklyProgress[i].steps >= goalSteps) {
+        streak++;
+      } else {
+        break; // Stop at first day that didn't meet goal
+      }
+    }
+
+    return streak;
+  };
+
+  const currentStreak = calculateCurrentStreak();
+  const daysHitGoal = weeklyProgress.filter(d => d.steps >= (displayStats.stepsGoal || 10000)).length;
+
   const achievements = [
     { id: 1, name: 'First 10K Steps', icon: '👟', unlocked: false },
     { id: 2, name: 'Week Warrior', icon: '🔥', unlocked: false },
@@ -117,12 +147,6 @@ const Activity = () => {
     { id: 4, name: 'Night Owl', icon: '🦉', unlocked: false },
   ];
 
-  const defaultHourlyActivity = Array.from({ length: 24 }, (_, i) => ({
-    hour: i,
-    steps: 0,
-  }));
-
-  const hourlyActivity = Array.isArray(hourlyData) ? hourlyData : defaultHourlyActivity;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -221,33 +245,165 @@ const Activity = () => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Hourly Activity Chart */}
+            {/* Activity Milestones & Achievements */}
             <Card className="lg:col-span-2">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold text-gray-900">Hourly Activity</h2>
-                <div className="flex items-center space-x-2">
-                  <button className="px-3 py-1 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg">
-                    Steps
-                  </button>
-                  <button className="px-3 py-1 text-sm font-medium text-gray-600 hover:bg-gray-50 rounded-lg">
-                    Calories
-                  </button>
+                <h2 className="text-lg font-bold text-gray-900">Milestones & Achievements</h2>
+                <Award className="w-5 h-5 text-yellow-500" />
+              </div>
+
+              {/* Progress Stats */}
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-blue-900">Current Streak</span>
+                    <Zap className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div className="flex items-baseline space-x-2">
+                    <div className="text-3xl font-bold text-blue-900">
+                      {currentStreak}
+                    </div>
+                    <div className="text-sm text-blue-700">
+                      {currentStreak === 1 ? 'day' : 'days'}
+                    </div>
+                  </div>
+                  <p className="text-xs text-blue-700 mt-1">
+                    {currentStreak > 0
+                      ? 'Keep it going! 🔥'
+                      : `Hit goal to start streak (${daysHitGoal}/7 days this week)`
+                    }
+                  </p>
+                </div>
+
+                <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-orange-900">Best Day</span>
+                    <TrendingUp className="w-4 h-4 text-orange-600" />
+                  </div>
+                  <div className="text-3xl font-bold text-orange-900">
+                    {Math.max(...weeklyProgress.map(d => d.steps), 0).toLocaleString()}
+                  </div>
+                  <p className="text-xs text-orange-700 mt-1">
+                    {Math.max(...weeklyProgress.map(d => d.steps)) > 0
+                      ? 'steps this week'
+                      : 'No steps logged yet'
+                    }
+                  </p>
                 </div>
               </div>
 
-              <ChartBar
-                data={hourlyActivity.map((h) => ({
-                  label: h.hour % 4 === 0 ? `${h.hour}h` : '',
-                  value: h.steps
-                }))}
-                color="from-blue-500 to-blue-400"
-                height={192}
-              />
+              {/* Achievement Badges */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-4">Recent Achievements</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {/* First Steps Achievement */}
+                  <div className={`p-4 rounded-xl border-2 transition-all ${
+                    displayStats.steps > 0
+                      ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200'
+                      : 'bg-gray-50 border-gray-200 opacity-60'
+                  }`}>
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl ${
+                        displayStats.steps > 0 ? 'bg-green-100' : 'bg-gray-200'
+                      }`}>
+                        👟
+                      </div>
+                      <div className="flex-1">
+                        <p className={`font-semibold text-sm ${
+                          displayStats.steps > 0 ? 'text-gray-900' : 'text-gray-500'
+                        }`}>
+                          First Steps
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {displayStats.steps > 0 ? 'Unlocked!' : 'Start walking'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
 
-              <div className="mt-6 text-center">
-                <p className="text-sm text-gray-500">
-                  Most active hour: <span className="font-medium text-gray-900">No data yet</span>
-                </p>
+                  {/* 10K Steps Achievement */}
+                  <div className={`p-4 rounded-xl border-2 transition-all ${
+                    displayStats.steps >= 10000
+                      ? 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200'
+                      : 'bg-gray-50 border-gray-200 opacity-60'
+                  }`}>
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl ${
+                        displayStats.steps >= 10000 ? 'bg-blue-100' : 'bg-gray-200'
+                      }`}>
+                        🏆
+                      </div>
+                      <div className="flex-1">
+                        <p className={`font-semibold text-sm ${
+                          displayStats.steps >= 10000 ? 'text-gray-900' : 'text-gray-500'
+                        }`}>
+                          10K Master
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {displayStats.steps >= 10000 ? 'Unlocked!' : `${(10000 - displayStats.steps).toLocaleString()} steps to go`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Week Warrior Achievement */}
+                  <div className={`p-4 rounded-xl border-2 transition-all ${
+                    daysHitGoal >= 5
+                      ? 'bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200'
+                      : 'bg-gray-50 border-gray-200 opacity-60'
+                  }`}>
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl ${
+                        daysHitGoal >= 5
+                          ? 'bg-purple-100'
+                          : 'bg-gray-200'
+                      }`}>
+                        🔥
+                      </div>
+                      <div className="flex-1">
+                        <p className={`font-semibold text-sm ${
+                          daysHitGoal >= 5
+                            ? 'text-gray-900'
+                            : 'text-gray-500'
+                        }`}>
+                          Week Warrior
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {daysHitGoal >= 5
+                            ? 'Unlocked! 5+ goal days'
+                            : `Hit goal ${5 - daysHitGoal} more days (${daysHitGoal}/5)`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Calorie Crusher Achievement */}
+                  <div className={`p-4 rounded-xl border-2 transition-all ${
+                    displayStats.calories >= 3000
+                      ? 'bg-gradient-to-br from-orange-50 to-red-50 border-orange-200'
+                      : 'bg-gray-50 border-gray-200 opacity-60'
+                  }`}>
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl ${
+                        displayStats.calories >= 3000 ? 'bg-orange-100' : 'bg-gray-200'
+                      }`}>
+                        🔥
+                      </div>
+                      <div className="flex-1">
+                        <p className={`font-semibold text-sm ${
+                          displayStats.calories >= 3000 ? 'text-gray-900' : 'text-gray-500'
+                        }`}>
+                          Calorie Crusher
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {displayStats.calories >= 3000
+                            ? 'Unlocked!'
+                            : `${(3000 - displayStats.calories).toLocaleString()} kcal to go`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </Card>
 

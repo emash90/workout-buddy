@@ -102,6 +102,31 @@ export class WeightTrendDto {
   trend: string;
 }
 
+export class DailyActivityDto {
+  @ApiProperty({ example: 'Mon', description: 'Day of week' })
+  day: string;
+
+  @ApiProperty({ example: 8543, description: 'Steps for the day' })
+  steps: number;
+
+  @ApiProperty({ example: 2100, description: 'Calories burned for the day' })
+  calories: number;
+
+  @ApiProperty({ example: '2024-01-15', description: 'Date in YYYY-MM-DD format' })
+  date: string;
+}
+
+export class WeeklyBreakdownDto {
+  @ApiProperty({ type: [DailyActivityDto], description: 'Daily activity data for the past 7 days' })
+  days: DailyActivityDto[];
+
+  @ApiProperty({ example: '2024-01-15', description: 'Start date of the week' })
+  startDate: string;
+
+  @ApiProperty({ example: '2024-01-22', description: 'End date of the week' })
+  endDate: string;
+}
+
 export class DashboardDto {
   @ApiProperty({ type: WeeklySummaryDto })
   weeklyActivity: WeeklySummaryDto;

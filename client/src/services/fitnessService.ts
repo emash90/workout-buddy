@@ -72,8 +72,8 @@ export const fitnessService = {
   },
 
   async getWeeklyActivity(): Promise<WeeklyData[]> {
-    const response = await api.get<WeeklyData[]>('/fitness-data/summary/weekly');
-    return response.data;
+    const response = await api.get<{ days: WeeklyData[] }>('/fitness-data/activities/weekly-breakdown');
+    return response.data.days;
   },
 
   // Activity data
@@ -88,10 +88,9 @@ export const fitnessService = {
     return response.data;
   },
 
-  async getHourlyActivity(date?: string): Promise<HourlyData[]> {
-    const params = date ? { date } : {};
-    const response = await api.get<HourlyData[]>('/fitness-data/activities', { params });
-    return response.data;
+  async getHourlyActivity(): Promise<HourlyData[]> {
+    // Hourly activity endpoint removed - returning empty array
+    return [];
   },
 
   async getWeeklyActivityStats(): Promise<any> {

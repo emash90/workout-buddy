@@ -290,6 +290,8 @@ export class FitnessDataService {
     const totalSteps = activities.reduce((sum, a) => sum + a.steps, 0);
     const totalCalories = activities.reduce((sum, a) => sum + a.calories, 0);
     const totalActiveMinutes = activities.reduce((sum, a) => sum + a.activeMinutes, 0);
+    const totalDistance = activities.reduce((sum, a) => sum + Number(a.distance), 0);
+    const totalFloors = activities.reduce((sum, a) => sum + a.floors, 0);
     const daysActive = activities.filter(a => a.steps > 0).length;
 
     return {
@@ -299,8 +301,60 @@ export class FitnessDataService {
       totalSteps,
       averageSteps: Math.round(totalSteps / 7),
       totalCalories: Math.round(totalCalories),
+      totalDistance: Math.round(totalDistance * 100) / 100, // Round to 2 decimal places
       totalActiveMinutes,
+      totalFloors,
       daysActive,
+    };
+  }
+
+  async getWeeklyActivityBreakdown(userId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const endDate = new Date(today);
+    const startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - 6); // Last 7 days including today
+
+    const activities = await this.activityRepo.find({
+      where: {
+        userId,
+        date: Between(startDate, endDate),
+      },
+      order: { date: 'ASC' },
+    });
+
+    // Create a map of activities by date for quick lookup
+    const activityMap = new Map<string, ActivityData>();
+    activities.forEach(activity => {
+      const dateStr = new Date(activity.date).toISOString().split('T')[0];
+      activityMap.set(dateStr, activity);
+    });
+
+    // Generate 7 days of data (including days with no data)
+    const days: Array<{ day: string; steps: number; calories: number; date: string }> = [];
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    for (let i = 0; i < 7; i++) {
+      const currentDate = new Date(startDate);
+      currentDate.setDate(startDate.getDate() + i);
+      const dateStr = currentDate.toISOString().split('T')[0];
+      const dayName = dayNames[currentDate.getDay()];
+
+      const activity = activityMap.get(dateStr);
+
+      days.push({
+        day: dayName,
+        steps: activity?.steps || 0,
+        calories: activity?.calories || 0,
+        date: dateStr,
+      });
+    }
+
+    return {
+      days,
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
     };
   }
 
@@ -332,6 +386,8 @@ export class FitnessDataService {
     const totalSteps = activities.reduce((sum, a) => sum + a.steps, 0);
     const totalCalories = activities.reduce((sum, a) => sum + a.calories, 0);
     const totalActiveMinutes = activities.reduce((sum, a) => sum + a.activeMinutes, 0);
+    const totalDistance = activities.reduce((sum, a) => sum + Number(a.distance), 0);
+    const totalFloors = activities.reduce((sum, a) => sum + a.floors, 0);
     const daysActive = activities.filter(a => a.steps > 0).length;
 
     return {
@@ -341,7 +397,9 @@ export class FitnessDataService {
       totalSteps,
       averageSteps: Math.round(totalSteps / 30),
       totalCalories: Math.round(totalCalories),
+      totalDistance: Math.round(totalDistance * 100) / 100, // Round to 2 decimal places
       totalActiveMinutes,
+      totalFloors,
       daysActive,
     };
   }

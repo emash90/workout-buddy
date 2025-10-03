@@ -94,7 +94,7 @@ export function useActivityStats(date?: string): UseFitnessDataResult<ActivitySt
   return { data, isLoading, error, refetch: fetchData };
 }
 
-export function useHourlyActivity(date?: string): UseFitnessDataResult<HourlyData[]> {
+export function useHourlyActivity(): UseFitnessDataResult<HourlyData[]> {
   const [data, setData] = useState<HourlyData[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -103,7 +103,7 @@ export function useHourlyActivity(date?: string): UseFitnessDataResult<HourlyDat
     setIsLoading(true);
     setError(null);
     try {
-      const result = await fitnessService.getHourlyActivity(date);
+      const result = await fitnessService.getHourlyActivity();
       setData(result);
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Failed to fetch data');
@@ -115,7 +115,7 @@ export function useHourlyActivity(date?: string): UseFitnessDataResult<HourlyDat
 
   useEffect(() => {
     fetchData();
-  }, [date]);
+  }, []);
 
   return { data, isLoading, error, refetch: fetchData };
 }

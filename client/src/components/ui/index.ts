@@ -8,4 +8,5 @@ export { TimeRangeSelector } from './TimeRangeSelector';
 export { Badge } from './Badge';
 export { MetricTrend } from './MetricTrend';
 export { ChartBar } from './ChartBar';
+export { ChartBarHorizontal } from './ChartBarHorizontal';
 export { MetricItem } from './MetricItem';

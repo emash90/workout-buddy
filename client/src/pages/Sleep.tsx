@@ -331,6 +331,8 @@ const Sleep = () => {
               }))}
               color="from-indigo-600 to-indigo-400"
               height={256}
+              showGridLines={true}
+              showTooltip={true}
             />
 
             <div className="mt-6 grid grid-cols-3 gap-4">

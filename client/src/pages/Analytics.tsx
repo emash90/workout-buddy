@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import {
-  TrendingUp,
   Calendar,
   BarChart3,
   Filter,
@@ -8,30 +7,31 @@ import {
   Flame,
   Clock,
   Target,
-  Award,
-  Zap,
   Moon,
 } from 'lucide-react';
-import { useDashboardStats } from '../hooks/useFitnessData';
 import { fitbitService } from '../services/fitbitService';
+import { fitnessService } from '../services/fitnessService';
 import type { FitbitConnectionStatus } from '../services/fitbitService';
 import Header from '../components/Header';
 import { Sidebar, EmptyState } from '../components/ui';
 
 const Analytics = () => {
-  const [timeRange, setTimeRange] = useState('month');
-  const [selectedMetric, setSelectedMetric] = useState('all');
+  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('week');
   const [fitbitStatus, setFitbitStatus] = useState<FitbitConnectionStatus | null>(null);
-
-  const { data: dashboardStats, refetch: refetchDashboard } = useDashboardStats();
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const handleSyncComplete = async () => {
-    await refetchDashboard();
+    await loadAnalyticsData();
   };
 
   useEffect(() => {
     loadFitbitStatus();
   }, []);
+
+  useEffect(() => {
+    loadAnalyticsData();
+  }, [timeRange]);
 
   const loadFitbitStatus = async () => {
     try {
@@ -42,30 +42,34 @@ const Analytics = () => {
     }
   };
 
-
-  const defaultSummaryStats = {
-    totalSteps: 0,
-    totalCalories: 0,
-    totalActiveMinutes: 0,
-    avgSleep: 0,
-    avgHeartRate: 0,
-    workoutsCompleted: 0,
+  const loadAnalyticsData = async () => {
+    setIsLoading(true);
+    try {
+      const data = await fitnessService.getAnalyticsSummary(timeRange);
+      setAnalyticsData(data);
+    } catch (error) {
+      console.error('Failed to load analytics data:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+
   const summaryStats = {
-    totalSteps: dashboardStats?.steps ?? defaultSummaryStats.totalSteps,
-    totalCalories: dashboardStats?.calories ?? defaultSummaryStats.totalCalories,
-    totalActiveMinutes: dashboardStats?.activeMinutes ?? defaultSummaryStats.totalActiveMinutes,
-    avgSleep: dashboardStats?.sleep ?? defaultSummaryStats.avgSleep,
-    avgHeartRate: dashboardStats?.heartRate ?? defaultSummaryStats.avgHeartRate,
-    workoutsCompleted: defaultSummaryStats.workoutsCompleted,
+    totalSteps: analyticsData?.totalSteps ?? 0,
+    totalCalories: analyticsData?.totalCalories ?? 0,
+    totalActiveMinutes: analyticsData?.totalActiveMinutes ?? 0,
+    totalDistance: analyticsData?.totalDistance ?? 0,
+    totalFloors: analyticsData?.totalFloors ?? 0,
+    avgSteps: analyticsData?.averageSteps ?? 0,
+    daysActive: analyticsData?.daysActive ?? 0,
   };
 
 
   const trends = [
     {
       name: 'Steps',
-      current: 0,
+      current: summaryStats.totalSteps,
       previous: 0,
       change: 0,
       icon: Footprints,
@@ -74,7 +78,7 @@ const Analytics = () => {
     },
     {
       name: 'Calories',
-      current: 0,
+      current: summaryStats.totalCalories,
       previous: 0,
       change: 0,
       icon: Flame,
@@ -83,7 +87,7 @@ const Analytics = () => {
     },
     {
       name: 'Active Minutes',
-      current: 0,
+      current: summaryStats.totalActiveMinutes,
       previous: 0,
       change: 0,
       icon: Clock,
@@ -91,53 +95,56 @@ const Analytics = () => {
       bgColor: 'bg-emerald-50',
     },
     {
-      name: 'Sleep Hours',
-      current: 0,
+      name: 'Distance',
+      current: summaryStats.totalDistance,
       previous: 0,
       change: 0,
       icon: Moon,
       color: 'from-indigo-500 to-purple-600',
       bgColor: 'bg-indigo-50',
+      unit: 'km',
     },
   ];
 
-  const monthlyData = Array.from({ length: 30 }, (_, i) => ({
-    day: i + 1,
-    steps: 0,
-    calories: 0,
-    activeMinutes: 0,
-    sleep: 0,
-  }));
+  const getPeriodMultiplier = () => {
+    if (timeRange === 'week') return 7;
+    if (timeRange === 'month') return 30;
+    return 365;
+  };
+
+  const multiplier = getPeriodMultiplier();
 
   const goals = [
-    { name: 'Daily Steps', target: 10000, achieved: 0, percentage: 0, color: 'blue' },
-    { name: 'Weekly Workouts', target: 5, achieved: 0, percentage: 0, color: 'orange' },
-    { name: 'Sleep Hours', target: 56, achieved: 0, percentage: 0, color: 'indigo' },
-    { name: 'Active Minutes', target: 150, achieved: 0, percentage: 0, color: 'emerald' },
+    {
+      name: `${timeRange === 'week' ? 'Weekly' : timeRange === 'month' ? 'Monthly' : 'Yearly'} Steps`,
+      target: 10000 * multiplier,
+      achieved: summaryStats.totalSteps,
+      percentage: Math.min((summaryStats.totalSteps / (10000 * multiplier)) * 100, 100),
+      color: 'blue'
+    },
+    {
+      name: `${timeRange === 'week' ? 'Weekly' : timeRange === 'month' ? 'Monthly' : 'Yearly'} Calories`,
+      target: 2500 * multiplier,
+      achieved: summaryStats.totalCalories,
+      percentage: Math.min((summaryStats.totalCalories / (2500 * multiplier)) * 100, 100),
+      color: 'orange'
+    },
+    {
+      name: `${timeRange === 'week' ? 'Weekly' : timeRange === 'month' ? 'Monthly' : 'Yearly'} Distance`,
+      target: 8 * multiplier,
+      achieved: summaryStats.totalDistance,
+      percentage: Math.min((summaryStats.totalDistance / (8 * multiplier)) * 100, 100),
+      color: 'indigo'
+    },
+    {
+      name: `${timeRange === 'week' ? 'Weekly' : timeRange === 'month' ? 'Monthly' : 'Yearly'} Active Minutes`,
+      target: 30 * multiplier,
+      achieved: summaryStats.totalActiveMinutes,
+      percentage: Math.min((summaryStats.totalActiveMinutes / (30 * multiplier)) * 100, 100),
+      color: 'emerald'
+    },
   ];
 
-  const achievements = [
-    { name: 'First Steps', description: 'Log your first activity', unlocked: false, date: null },
-    { name: 'Week Warrior', description: 'Complete 7 days streak', unlocked: false, date: null },
-    { name: '10K Club', description: 'Walk 10,000 steps in a day', unlocked: false, date: null },
-    { name: 'Sleep Master', description: 'Get 8+ hours for 5 days', unlocked: false, date: null },
-    { name: 'Calorie Crusher', description: 'Burn 3,000+ calories', unlocked: false, date: null },
-    { name: 'Early Bird', description: 'Wake up before 6 AM for 7 days', unlocked: false, date: null },
-  ];
-
-  const getTrendIcon = (change: number) => {
-    if (change > 0) return <TrendingUp className="w-4 h-4" />;
-    if (change < 0) return <TrendingUp className="w-4 h-4 rotate-180" />;
-    return <span className="w-4 h-4">-</span>;
-  };
-
-  const getTrendColor = (change: number) => {
-    if (change > 0) return 'text-green-600 bg-green-50';
-    if (change < 0) return 'text-red-600 bg-red-50';
-    return 'text-gray-600 bg-gray-50';
-  };
-
-  const maxValue = Math.max(...monthlyData.map((d) => d.steps), 1);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -155,6 +162,15 @@ const Analytics = () => {
 
         {/* Dashboard Content */}
         <div className="p-8">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-500">Loading analytics data...</p>
+              </div>
+            </div>
+          ) : (
+            <>
           {/* Time Range & Filter */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-2">
@@ -203,11 +219,14 @@ const Analytics = () => {
           </div>
 
           {/* Summary Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
               <div className="text-xs text-gray-500 mb-1">Total Steps</div>
               <div className="text-2xl font-bold text-gray-900">
                 {summaryStats.totalSteps.toLocaleString()}
+              </div>
+              <div className="text-xs text-gray-400 mt-1">
+                Avg: {summaryStats.avgSteps.toLocaleString()}/day
               </div>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
@@ -215,27 +234,35 @@ const Analytics = () => {
               <div className="text-2xl font-bold text-gray-900">
                 {summaryStats.totalCalories.toLocaleString()}
               </div>
+              <div className="text-xs text-gray-400 mt-1">
+                Avg: {Math.round(summaryStats.totalCalories / (summaryStats.daysActive || 1)).toLocaleString()}/day
+              </div>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
               <div className="text-xs text-gray-500 mb-1">Active Minutes</div>
               <div className="text-2xl font-bold text-gray-900">
-                {summaryStats.totalActiveMinutes}
+                {summaryStats.totalActiveMinutes.toLocaleString()}
+              </div>
+              <div className="text-xs text-gray-400 mt-1">
+                Avg: {Math.round(summaryStats.totalActiveMinutes / (summaryStats.daysActive || 1))}/day
               </div>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-              <div className="text-xs text-gray-500 mb-1">Avg Sleep</div>
-              <div className="text-2xl font-bold text-gray-900">{summaryStats.avgSleep}h</div>
-            </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-              <div className="text-xs text-gray-500 mb-1">Avg Heart Rate</div>
+              <div className="text-xs text-gray-500 mb-1">Distance</div>
               <div className="text-2xl font-bold text-gray-900">
-                {summaryStats.avgHeartRate} bpm
+                {summaryStats.totalDistance.toFixed(1)} km
+              </div>
+              <div className="text-xs text-gray-400 mt-1">
+                Avg: {(summaryStats.totalDistance / (summaryStats.daysActive || 1)).toFixed(1)}/day
               </div>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-              <div className="text-xs text-gray-500 mb-1">Workouts</div>
+              <div className="text-xs text-gray-500 mb-1">Days Active</div>
               <div className="text-2xl font-bold text-gray-900">
-                {summaryStats.workoutsCompleted}
+                {summaryStats.daysActive}
+              </div>
+              <div className="text-xs text-gray-400 mt-1">
+                Out of {multiplier} days
               </div>
             </div>
           </div>
@@ -253,71 +280,20 @@ const Analytics = () => {
                   >
                     <trend.icon className="w-6 h-6 text-white" />
                   </div>
-                  <div className={`flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-medium ${getTrendColor(trend.change)}`}>
-                    {getTrendIcon(trend.change)}
-                    <span>{Math.abs(trend.change)}%</span>
-                  </div>
                 </div>
                 <h3 className="text-sm font-medium text-gray-500 mb-1">{trend.name}</h3>
                 <div className="text-2xl font-bold text-gray-900 mb-1">
-                  {trend.current.toLocaleString()}
+                  {trend.unit === 'km' ? trend.current.toFixed(1) : trend.current.toLocaleString()}
+                  {trend.unit && <span className="text-sm text-gray-500 ml-1">{trend.unit}</span>}
                 </div>
                 <div className="text-xs text-gray-500">
-                  vs {trend.previous.toLocaleString()} last period
+                  {timeRange === 'week' ? 'Past 7 days' : timeRange === 'month' ? 'Past 30 days' : 'Past year'}
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            {/* Monthly Progress Chart */}
-            <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold text-gray-900">Progress Over Time</h2>
-                <select
-                  value={selectedMetric}
-                  onChange={(e) => setSelectedMetric(e.target.value)}
-                  className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">All Metrics</option>
-                  <option value="steps">Steps</option>
-                  <option value="calories">Calories</option>
-                  <option value="activeMinutes">Active Minutes</option>
-                  <option value="sleep">Sleep</option>
-                </select>
-              </div>
-
-              <div className="flex items-end justify-between h-64 space-x-1">
-                {monthlyData.map((data, index) => (
-                  <div key={index} className="flex-1 flex flex-col items-center group">
-                    <div className="w-full flex flex-col justify-end h-full">
-                      <div
-                        className="w-full bg-gradient-to-t from-blue-500 to-blue-400 rounded-t transition-all hover:from-blue-600 hover:to-blue-500 cursor-pointer relative"
-                        style={{
-                          height: `${(data.steps / maxValue) * 100}%`,
-                          minHeight: '2px',
-                        }}
-                      >
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                          Day {data.day}: {data.steps}
-                        </div>
-                      </div>
-                    </div>
-                    {index % 5 === 0 && (
-                      <span className="text-xs text-gray-400 mt-2">{data.day}</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-6 flex items-center justify-center space-x-6 text-sm">
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-blue-500 rounded"></div>
-                  <span className="text-gray-600">Daily Progress</span>
-                </div>
-              </div>
-            </div>
-
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             {/* Goals Progress */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <div className="flex items-center justify-between mb-6">
@@ -331,13 +307,21 @@ const Analytics = () => {
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium text-gray-700">{goal.name}</span>
                       <span className="text-sm font-bold text-gray-900">
-                        {goal.achieved} / {goal.target}
+                        {goal.name.includes('Distance')
+                          ? `${goal.achieved.toFixed(1)} / ${goal.target} km`
+                          : `${goal.achieved.toLocaleString()} / ${goal.target.toLocaleString()}`
+                        }
                       </span>
                     </div>
                     <div className="w-full bg-gray-100 rounded-full h-2">
                       <div
-                        className={`bg-gradient-to-r from-${goal.color}-500 to-${goal.color}-600 h-2 rounded-full transition-all`}
-                        style={{ width: `${goal.percentage}%` }}
+                        className={`h-2 rounded-full transition-all ${
+                          goal.color === 'blue' ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
+                          goal.color === 'orange' ? 'bg-gradient-to-r from-orange-500 to-orange-600' :
+                          goal.color === 'indigo' ? 'bg-gradient-to-r from-indigo-500 to-indigo-600' :
+                          'bg-gradient-to-r from-emerald-500 to-emerald-600'
+                        }`}
+                        style={{ width: `${Math.round(goal.percentage)}%` }}
                       ></div>
                     </div>
                   </div>
@@ -350,115 +334,92 @@ const Analytics = () => {
                 </button>
               </div>
             </div>
-          </div>
 
-          {/* Achievements */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center">
-                  <Award className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900">Achievements</h2>
-                  <p className="text-sm text-gray-500">0 / {achievements.length} unlocked</p>
-                </div>
+            {/* Period Summary */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-bold text-gray-900">
+                  {timeRange === 'week' ? 'Weekly' : timeRange === 'month' ? 'Monthly' : 'Yearly'} Summary
+                </h2>
+                <BarChart3 className="w-5 h-5 text-gray-400" />
               </div>
-              <button className="text-sm font-medium text-blue-600 hover:text-blue-700">
-                View All
-              </button>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {achievements.map((achievement, index) => (
-                <div
-                  key={index}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    achievement.unlocked
-                      ? 'border-amber-300 bg-amber-50'
-                      : 'border-gray-200 bg-gray-50 opacity-60'
-                  }`}
-                >
-                  <div className="flex items-start space-x-3">
-                    <div
-                      className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
-                        achievement.unlocked ? 'bg-amber-100' : 'bg-gray-200'
-                      }`}
-                    >
-                      {achievement.unlocked ? '🏆' : '🔒'}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Footprints className="w-5 h-5 text-blue-600" />
                     </div>
-                    <div className="flex-1">
-                      <h3
-                        className={`text-sm font-bold mb-1 ${
-                          achievement.unlocked ? 'text-gray-900' : 'text-gray-500'
-                        }`}
-                      >
-                        {achievement.name}
-                      </h3>
-                      <p className="text-xs text-gray-600">{achievement.description}</p>
-                      {achievement.unlocked && achievement.date && (
-                        <p className="text-xs text-amber-600 mt-1">
-                          Unlocked {achievement.date}
-                        </p>
-                      )}
+                    <div>
+                      <p className="text-xs text-blue-700 font-medium">Average Steps</p>
+                      <p className="text-xl font-bold text-blue-900">{summaryStats.avgSteps.toLocaleString()}</p>
                     </div>
                   </div>
+                  <span className="text-xs text-blue-600 font-medium">per day</span>
                 </div>
-              ))}
+
+                <div className="flex items-center justify-between p-4 bg-orange-50 rounded-xl">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <Flame className="w-5 h-5 text-orange-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-orange-700 font-medium">Average Calories</p>
+                      <p className="text-xl font-bold text-orange-900">
+                        {Math.round(summaryStats.totalCalories / (summaryStats.daysActive || 1)).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-xs text-orange-600 font-medium">per day</span>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-xl">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-emerald-700 font-medium">Average Active Minutes</p>
+                      <p className="text-xl font-bold text-emerald-900">
+                        {Math.round(summaryStats.totalActiveMinutes / (summaryStats.daysActive || 1))}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-xs text-emerald-600 font-medium">per day</span>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-indigo-50 rounded-xl">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                      <Target className="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-indigo-700 font-medium">Days Active</p>
+                      <p className="text-xl font-bold text-indigo-900">{summaryStats.daysActive}</p>
+                    </div>
+                  </div>
+                  <span className="text-xs text-indigo-600 font-medium">of {multiplier}</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Performance Insights */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 shadow-sm text-white">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold">Weekly Performance</h3>
-                <TrendingUp className="w-6 h-6 opacity-80" />
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm opacity-90">Best Day</span>
-                  <span className="font-bold">No data yet</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm opacity-90">Consistency</span>
-                  <span className="font-bold">0%</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm opacity-90">Improvement</span>
-                  <span className="font-bold">0%</span>
-                </div>
-              </div>
-            </div>
 
-            <div className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl p-6 shadow-sm text-white">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold">Fitness Score</h3>
-                <Zap className="w-6 h-6 opacity-80" />
-              </div>
-              <div className="text-center mb-4">
-                <div className="text-5xl font-bold mb-2">0</div>
-                <div className="text-sm opacity-90">out of 100</div>
-              </div>
-              <p className="text-sm opacity-90">
-                {fitbitStatus?.connected
-                  ? 'Your device is connected. Your fitness score will be calculated once sufficient data is collected from your activities, sleep, and heart rate.'
-                  : 'Go to Settings to connect your fitness device and calculate your fitness score based on activity, sleep, and heart rate data.'}
-              </p>
-            </div>
-          </div>
-
-          {/* Empty State */}
-          <EmptyState
-            icon={BarChart3}
-            title="No Analytics Data Yet"
-            description={
-              fitbitStatus?.connected
-                ? 'Your device is connected. Analytics and trends will appear here once you have sufficient historical data. Keep using your device to track your fitness journey.'
-                : 'Go to Settings to connect your fitness device and start tracking detailed analytics, trends, and insights about your fitness journey.'
-            }
-            iconColor="bg-blue-100 text-blue-600"
-          />
+          {/* Show empty state only if no data */}
+          {summaryStats.totalSteps === 0 && (
+            <EmptyState
+              icon={BarChart3}
+              title="No Analytics Data Yet"
+              description={
+                fitbitStatus?.connected
+                  ? 'Your device is connected. Analytics and trends will appear here once you have sufficient historical data. Keep using your device to track your fitness journey.'
+                  : 'Go to Settings to connect your fitness device and start tracking detailed analytics, trends, and insights about your fitness journey.'
+              }
+              iconColor="bg-blue-100 text-blue-600"
+            />
+          )}
+            </>
+          )}
         </div>
       </main>
     </div>
