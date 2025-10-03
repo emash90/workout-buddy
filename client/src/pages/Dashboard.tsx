@@ -1,56 +1,14 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import {
-  Activity,
-  Heart,
-  Moon,
-  Target,
-  Flame,
-  Footprints,
-  Clock,
-  BarChart3,
-  Home,
-  Settings,
-  User,
-  LogOut,
-  Bell,
-  ChevronDown,
-  RefreshCw,
-} from 'lucide-react';
+import { Target, Flame, Footprints, Clock, Heart, Moon, Activity } from 'lucide-react';
 import { useDashboardStats, useWeeklyActivity } from '../hooks/useFitnessData';
-import { authService } from '../services/auth.service';
-import { fitnessService } from '../services/fitnessService';
+import Header from '../components/Header';
+import { Sidebar, StatCard, Card, ChartBar, MetricItem } from '../components/ui';
 
 const Dashboard = () => {
-  const navigate = useNavigate();
-  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useDashboardStats();
-  const { data: weeklyData, isLoading: weeklyLoading, refetch: refetchWeekly } = useWeeklyActivity();
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const { data: stats, refetch: refetchStats } = useDashboardStats();
+  const { data: weeklyData, refetch: refetchWeekly } = useWeeklyActivity();
 
-  const handleLogout = () => {
-    authService.logout();
-  };
-
-  const handleSync = async () => {
-    try {
-      setIsSyncing(true);
-      setSyncMessage(null);
-      await fitnessService.syncTodayData();
-      setSyncMessage('Data synced successfully!');
-
-      // Refetch data after sync
-      await Promise.all([refetchStats(), refetchWeekly()]);
-
-      // Clear success message after 3 seconds
-      setTimeout(() => setSyncMessage(null), 3000);
-    } catch (error: any) {
-      console.error('Failed to sync data:', error);
-      setSyncMessage('Failed to sync data. Please try again.');
-      setTimeout(() => setSyncMessage(null), 5000);
-    } finally {
-      setIsSyncing(false);
-    }
+  const handleSyncComplete = async () => {
+    await Promise.all([refetchStats(), refetchWeekly()]);
   };
 
   // Default values when data is null or loading
@@ -90,248 +48,75 @@ const Dashboard = () => {
 
   const displayWeeklyData = Array.isArray(weeklyData) ? weeklyData : defaultWeeklyData;
 
-  const maxSteps = Math.max(...displayWeeklyData.map((d) => d.steps), 1);
-
-  const isLoading = statsLoading || weeklyLoading;
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Sidebar */}
-      <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 shadow-sm">
-        <div className="p-6">
-          <div className="flex items-center space-x-2 mb-8">
-            <Activity className="w-8 h-8 text-blue-600" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Workout Buddy
-            </span>
-          </div>
-
-          <nav className="space-y-2">
-            <Link
-              to="/dashboard"
-              className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors bg-blue-50 text-blue-600"
-            >
-              <Home className="w-5 h-5" />
-              <span className="font-medium">Overview</span>
-            </Link>
-
-            <Link
-              to="/activity"
-              className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-gray-600 hover:bg-gray-50"
-            >
-              <Activity className="w-5 h-5" />
-              <span className="font-medium">Activity</span>
-            </Link>
-
-            <Link
-              to="/sleep"
-              className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-gray-600 hover:bg-gray-50"
-            >
-              <Moon className="w-5 h-5" />
-              <span className="font-medium">Sleep</span>
-            </Link>
-
-            <Link
-              to="/heart-rate"
-              className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-gray-600 hover:bg-gray-50"
-            >
-              <Heart className="w-5 h-5" />
-              <span className="font-medium">Heart Rate</span>
-            </Link>
-
-            <Link
-              to="/analytics"
-              className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-gray-600 hover:bg-gray-50"
-            >
-              <BarChart3 className="w-5 h-5" />
-              <span className="font-medium">Analytics</span>
-            </Link>
-          </nav>
-
-          <div className="absolute bottom-6 left-6 right-6 space-y-2">
-            <Link
-              to="/settings"
-              className="w-full flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-            >
-              <Settings className="w-5 h-5" />
-              <span className="font-medium">Settings</span>
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-            >
-              <LogOut className="w-5 h-5" />
-              <span className="font-medium">Logout</span>
-            </button>
-          </div>
-        </div>
-      </aside>
+      <Sidebar />
 
       {/* Main Content */}
       <main className="ml-64 min-h-screen">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
-          <div className="px-8 py-4 flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Welcome back!
-              </h1>
-              <p className="text-sm text-gray-500 mt-1">
-                {new Date().toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </p>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              {/* Sync Button */}
-              <button
-                onClick={handleSync}
-                disabled={isSyncing}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Sync Fitbit data"
-              >
-                <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span className="text-sm font-medium">{isSyncing ? 'Syncing...' : 'Sync'}</span>
-              </button>
-
-              {/* Sync Message */}
-              {syncMessage && (
-                <div className={`text-sm px-3 py-1 rounded ${
-                  syncMessage.includes('success')
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-red-100 text-red-700'
-                }`}>
-                  {syncMessage}
-                </div>
-              )}
-
-              <button className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
-                <Bell className="w-6 h-6" />
-              </button>
-
-              <div className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 rounded-lg px-3 py-2 transition-colors">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
-                  <User className="w-6 h-6 text-white" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-medium text-gray-900">User</p>
-                  <p className="text-xs text-gray-500">Free Plan</p>
-                </div>
-                <ChevronDown className="w-4 h-4 text-gray-400" />
-              </div>
-            </div>
-          </div>
-        </header>
+        <Header
+          title="Welcome back!"
+          subtitle={new Date().toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })}
+          showSync={true}
+          onSyncComplete={handleSyncComplete}
+        />
 
         {/* Dashboard Content */}
         <div className="p-8">
           {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {/* Steps Card */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-                  <Footprints className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-sm font-medium text-gray-500">Today</span>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-1">
-                {displayStats.steps.toLocaleString()}
-              </h3>
-              <p className="text-sm text-gray-500 mb-3">
-                of {displayStats.stepsGoal.toLocaleString()} steps
-              </p>
-              <div className="w-full bg-gray-100 rounded-full h-2">
-                <div
-                  className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all"
-                  style={{ width: `${(displayStats.steps / displayStats.stepsGoal) * 100}%` }}
-                ></div>
-              </div>
-            </div>
+            <StatCard
+              icon={Footprints}
+              title="Steps"
+              value={displayStats.steps}
+              goal={displayStats.stepsGoal}
+              unit="steps"
+              color="from-blue-500 to-blue-600"
+              subtitle="Today"
+            />
 
-            {/* Calories Card */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-rose-600 rounded-xl flex items-center justify-center">
-                  <Flame className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-sm font-medium text-gray-500">Today</span>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-1">
-                {displayStats.calories.toLocaleString()}
-              </h3>
-              <p className="text-sm text-gray-500 mb-3">
-                of {displayStats.caloriesGoal.toLocaleString()} kcal
-              </p>
-              <div className="w-full bg-gray-100 rounded-full h-2">
-                <div
-                  className="bg-gradient-to-r from-orange-500 to-rose-600 h-2 rounded-full transition-all"
-                  style={{
-                    width: `${(displayStats.calories / displayStats.caloriesGoal) * 100}%`,
-                  }}
-                ></div>
-              </div>
-            </div>
+            <StatCard
+              icon={Flame}
+              title="Calories"
+              value={displayStats.calories}
+              goal={displayStats.caloriesGoal}
+              unit="kcal"
+              color="from-orange-500 to-rose-600"
+              subtitle="Today"
+            />
 
-            {/* Active Minutes Card */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
-                  <Clock className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-sm font-medium text-gray-500">Today</span>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-1">
-                {displayStats.activeMinutes} min
-              </h3>
-              <p className="text-sm text-gray-500 mb-3">
-                of {displayStats.activeMinutesGoal} min goal
-              </p>
-              <div className="w-full bg-gray-100 rounded-full h-2">
-                <div
-                  className="bg-gradient-to-r from-emerald-500 to-teal-600 h-2 rounded-full transition-all"
-                  style={{
-                    width: `${(displayStats.activeMinutes / displayStats.activeMinutesGoal) * 100}%`,
-                  }}
-                ></div>
-              </div>
-            </div>
+            <StatCard
+              icon={Clock}
+              title="Active Minutes"
+              value={displayStats.activeMinutes}
+              goal={displayStats.activeMinutesGoal}
+              unit="min"
+              color="from-emerald-500 to-teal-600"
+              subtitle="Today"
+            />
 
-            {/* Heart Rate Card */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-rose-500 to-pink-600 rounded-xl flex items-center justify-center">
-                  <Heart className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-sm font-medium text-gray-500">Now</span>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-1">
-                {displayStats.heartRate} bpm
-              </h3>
-              <p className="text-sm text-gray-500 mb-3">Resting heart rate</p>
-              <div className="flex items-center space-x-1">
-                <div className="w-1 h-4 bg-rose-200 rounded"></div>
-                <div className="w-1 h-6 bg-rose-300 rounded"></div>
-                <div className="w-1 h-5 bg-rose-400 rounded"></div>
-                <div className="w-1 h-7 bg-rose-500 rounded"></div>
-                <div className="w-1 h-4 bg-rose-400 rounded"></div>
-                <div className="w-1 h-6 bg-rose-500 rounded"></div>
-                <div className="w-1 h-8 bg-rose-600 rounded"></div>
-              </div>
-            </div>
+            <StatCard
+              icon={Heart}
+              title="Heart Rate"
+              value={displayStats.heartRate}
+              unit="bpm"
+              color="from-rose-500 to-pink-600"
+              subtitle="Now"
+              showProgress={false}
+            />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Weekly Activity Chart */}
-            <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <Card className="lg:col-span-2">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold text-gray-900">
-                  Weekly Activity
-                </h2>
+                <h2 className="text-lg font-bold text-gray-900">Weekly Activity</h2>
                 <div className="flex items-center space-x-2">
                   <button className="px-3 py-1 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg">
                     Steps
@@ -342,23 +127,11 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              <div className="flex items-end justify-between h-64 space-x-3">
-                {displayWeeklyData.map((data, index) => (
-                  <div key={index} className="flex-1 flex flex-col items-center">
-                    <div className="w-full flex flex-col justify-end h-full">
-                      <div
-                        className="w-full bg-gradient-to-t from-blue-500 to-blue-400 rounded-t-lg transition-all hover:from-blue-600 hover:to-blue-500 cursor-pointer"
-                        style={{
-                          height: `${(data.steps / maxSteps) * 100}%`,
-                        }}
-                      ></div>
-                    </div>
-                    <span className="text-xs text-gray-500 mt-2 font-medium">
-                      {data.day}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <ChartBar
+                data={displayWeeklyData.map((d) => ({ label: d.day, value: d.steps }))}
+                color="from-blue-500 to-blue-400"
+                height={256}
+              />
 
               <div className="mt-6 flex items-center justify-between text-sm">
                 <div className="flex items-center space-x-2">
@@ -369,81 +142,43 @@ const Dashboard = () => {
                 </div>
                 <div className="text-gray-500">Last 7 days</div>
               </div>
-            </div>
+            </Card>
 
             {/* Goals & Sleep Card */}
             <div className="space-y-6">
               {/* Today's Goals */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <Card>
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-bold text-gray-900">
-                    Today's Goals
-                  </h2>
+                  <h2 className="text-lg font-bold text-gray-900">Today's Goals</h2>
                   <Target className="w-5 h-5 text-gray-400" />
                 </div>
 
                 <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">
-                        Steps
-                      </span>
-                      <span className="text-sm font-bold text-blue-600">
-                        {Math.round((displayStats.steps / displayStats.stepsGoal) * 100)}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
-                      <div
-                        className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full"
-                        style={{
-                          width: `${(displayStats.steps / displayStats.stepsGoal) * 100}%`,
-                        }}
-                      ></div>
-                    </div>
-                  </div>
+                  <MetricItem
+                    label="Steps"
+                    value={displayStats.steps}
+                    max={displayStats.stepsGoal}
+                    color="from-blue-500 to-blue-600"
+                  />
 
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">
-                        Calories
-                      </span>
-                      <span className="text-sm font-bold text-orange-600">
-                        {Math.round((displayStats.calories / displayStats.caloriesGoal) * 100)}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
-                      <div
-                        className="bg-gradient-to-r from-orange-500 to-rose-600 h-2 rounded-full"
-                        style={{
-                          width: `${(displayStats.calories / displayStats.caloriesGoal) * 100}%`,
-                        }}
-                      ></div>
-                    </div>
-                  </div>
+                  <MetricItem
+                    label="Calories"
+                    value={displayStats.calories}
+                    max={displayStats.caloriesGoal}
+                    color="from-orange-500 to-rose-600"
+                  />
 
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">
-                        Active Minutes
-                      </span>
-                      <span className="text-sm font-bold text-emerald-600">
-                        {Math.round((displayStats.activeMinutes / displayStats.activeMinutesGoal) * 100)}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
-                      <div
-                        className="bg-gradient-to-r from-emerald-500 to-teal-600 h-2 rounded-full"
-                        style={{
-                          width: `${(displayStats.activeMinutes / displayStats.activeMinutesGoal) * 100}%`,
-                        }}
-                      ></div>
-                    </div>
-                  </div>
+                  <MetricItem
+                    label="Active Minutes"
+                    value={displayStats.activeMinutes}
+                    max={displayStats.activeMinutesGoal}
+                    color="from-emerald-500 to-teal-600"
+                  />
                 </div>
-              </div>
+              </Card>
 
               {/* Sleep Card */}
-              <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 shadow-sm text-white">
+              <Card gradient="bg-gradient-to-br from-indigo-500 to-purple-600">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-bold">Last Night's Sleep</h2>
                   <Moon className="w-5 h-5" />
@@ -472,7 +207,7 @@ const Dashboard = () => {
                     <span className="font-medium">0h</span>
                   </div>
                 </div>
-              </div>
+              </Card>
             </div>
           </div>
 
@@ -487,15 +222,35 @@ const Dashboard = () => {
               </button>
             </div>
 
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <Activity className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 font-medium">No activities yet</p>
-                <p className="text-sm text-gray-400 mt-1">
-                  Connect your device in Settings to start tracking
-                </p>
+            {displayStats.steps === 0 && displayStats.calories === 0 && displayStats.activeMinutes === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <Activity className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500 font-medium">No activities yet</p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Connect your device in Settings to start tracking
+                  </p>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Footprints className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Daily Activity</p>
+                      <p className="text-sm text-gray-500">{displayStats.steps.toLocaleString()} steps today</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-gray-900">{displayStats.calories} cal</p>
+                    <p className="text-xs text-gray-500">{displayStats.activeMinutes} active min</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   Activity,
   Heart,
@@ -32,7 +32,6 @@ import { fitbitService } from '../services/fitbitService';
 import type { FitbitConnectionStatus } from '../services/fitbitService';
 
 const Settings = () => {
-  const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('profile');
   const [showPassword, setShowPassword] = useState(false);
 

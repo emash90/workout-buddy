@@ -94,6 +94,16 @@ export const fitnessService = {
     return response.data;
   },
 
+  async getWeeklyActivityStats(): Promise<any> {
+    const response = await api.get('/fitness-data/summary/weekly');
+    return response.data;
+  },
+
+  async getMonthlyActivityStats(): Promise<any> {
+    const response = await api.get('/fitness-data/summary/monthly');
+    return response.data;
+  },
+
   // Sleep data
   async getSleepStats(date?: string): Promise<SleepStats> {
     const params = date ? { date } : {};

@@ -1,19 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import {
-  Activity,
-  Heart,
-  Moon,
   TrendingUp,
   Calendar,
   BarChart3,
-  Home,
-  Settings,
-  User,
-  LogOut,
-  Bell,
-  ChevronDown,
-  Download,
   Filter,
   Footprints,
   Flame,
@@ -21,21 +10,24 @@ import {
   Target,
   Award,
   Zap,
-  ArrowUpRight,
-  ArrowDownRight,
-  Minus,
+  Moon,
 } from 'lucide-react';
 import { useDashboardStats } from '../hooks/useFitnessData';
-import { authService } from '../services/auth.service';
 import { fitbitService } from '../services/fitbitService';
 import type { FitbitConnectionStatus } from '../services/fitbitService';
+import Header from '../components/Header';
+import { Sidebar, EmptyState } from '../components/ui';
 
 const Analytics = () => {
   const [timeRange, setTimeRange] = useState('month');
   const [selectedMetric, setSelectedMetric] = useState('all');
   const [fitbitStatus, setFitbitStatus] = useState<FitbitConnectionStatus | null>(null);
 
-  const { data: dashboardStats} = useDashboardStats();
+  const { data: dashboardStats, refetch: refetchDashboard } = useDashboardStats();
+
+  const handleSyncComplete = async () => {
+    await refetchDashboard();
+  };
 
   useEffect(() => {
     loadFitbitStatus();
@@ -50,9 +42,6 @@ const Analytics = () => {
     }
   };
 
-  const handleLogout = () => {
-    authService.logout();
-  };
 
   const defaultSummaryStats = {
     totalSteps: 0,
@@ -137,9 +126,9 @@ const Analytics = () => {
   ];
 
   const getTrendIcon = (change: number) => {
-    if (change > 0) return <ArrowUpRight className="w-4 h-4" />;
-    if (change < 0) return <ArrowDownRight className="w-4 h-4" />;
-    return <Minus className="w-4 h-4" />;
+    if (change > 0) return <TrendingUp className="w-4 h-4" />;
+    if (change < 0) return <TrendingUp className="w-4 h-4 rotate-180" />;
+    return <span className="w-4 h-4">-</span>;
   };
 
   const getTrendColor = (change: number) => {
@@ -152,112 +141,17 @@ const Analytics = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Sidebar */}
-      <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 shadow-sm">
-        <div className="p-6">
-          <Link to="/dashboard" className="flex items-center space-x-2 mb-8">
-            <Activity className="w-8 h-8 text-blue-600" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Workout Buddy
-            </span>
-          </Link>
-
-          <nav className="space-y-2">
-            <Link
-              to="/dashboard"
-              className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-gray-600 hover:bg-gray-50"
-            >
-              <Home className="w-5 h-5" />
-              <span className="font-medium">Overview</span>
-            </Link>
-
-            <Link
-              to="/activity"
-              className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-gray-600 hover:bg-gray-50"
-            >
-              <Activity className="w-5 h-5" />
-              <span className="font-medium">Activity</span>
-            </Link>
-
-            <Link
-              to="/sleep"
-              className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-gray-600 hover:bg-gray-50"
-            >
-              <Moon className="w-5 h-5" />
-              <span className="font-medium">Sleep</span>
-            </Link>
-
-            <Link
-              to="/heart-rate"
-              className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-gray-600 hover:bg-gray-50"
-            >
-              <Heart className="w-5 h-5" />
-              <span className="font-medium">Heart Rate</span>
-            </Link>
-
-            <Link
-              to="/analytics"
-              className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors bg-blue-50 text-blue-600"
-            >
-              <BarChart3 className="w-5 h-5" />
-              <span className="font-medium">Analytics</span>
-            </Link>
-          </nav>
-
-          <div className="absolute bottom-6 left-6 right-6 space-y-2">
-            <Link
-              to="/settings"
-              className="w-full flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-            >
-              <Settings className="w-5 h-5" />
-              <span className="font-medium">Settings</span>
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-            >
-              <LogOut className="w-5 h-5" />
-              <span className="font-medium">Logout</span>
-            </button>
-          </div>
-        </div>
-      </aside>
+      <Sidebar />
 
       {/* Main Content */}
       <main className="ml-64 min-h-screen">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
-          <div className="px-8 py-4 flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Analytics & Insights</h1>
-              <p className="text-sm text-gray-500 mt-1">
-                Comprehensive view of your fitness progress and trends
-              </p>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <button className="flex items-center space-x-2 px-4 py-2 bg-white text-gray-600 hover:bg-gray-50 border border-gray-200 rounded-lg transition-colors text-sm font-medium">
-                <Download className="w-4 h-4" />
-                <span>Export Data</span>
-              </button>
-
-              <button className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
-                <Bell className="w-6 h-6" />
-              </button>
-
-              <div className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 rounded-lg px-3 py-2 transition-colors">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
-                  <User className="w-6 h-6 text-white" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-medium text-gray-900">User</p>
-                  <p className="text-xs text-gray-500">Free Plan</p>
-                </div>
-                <ChevronDown className="w-4 h-4 text-gray-400" />
-              </div>
-            </div>
-          </div>
-        </header>
+        <Header
+          title="Analytics & Insights"
+          subtitle="Comprehensive view of your fitness progress and trends"
+          showSync={true}
+          onSyncComplete={handleSyncComplete}
+        />
 
         {/* Dashboard Content */}
         <div className="p-8">
@@ -555,21 +449,16 @@ const Analytics = () => {
           </div>
 
           {/* Empty State */}
-          <div className="bg-white rounded-2xl p-12 shadow-sm border border-gray-100">
-            <div className="text-center max-w-md mx-auto">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <BarChart3 className="w-8 h-8 text-blue-600" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">
-                {fitbitStatus?.connected ? 'No Analytics Data Yet' : 'No Analytics Data Yet'}
-              </h3>
-              <p className="text-gray-500">
-                {fitbitStatus?.connected
-                  ? 'Your device is connected. Analytics and trends will appear here once you have sufficient historical data. Keep using your device to track your fitness journey.'
-                  : 'Go to Settings to connect your fitness device and start tracking detailed analytics, trends, and insights about your fitness journey.'}
-              </p>
-            </div>
-          </div>
+          <EmptyState
+            icon={BarChart3}
+            title="No Analytics Data Yet"
+            description={
+              fitbitStatus?.connected
+                ? 'Your device is connected. Analytics and trends will appear here once you have sufficient historical data. Keep using your device to track your fitness journey.'
+                : 'Go to Settings to connect your fitness device and start tracking detailed analytics, trends, and insights about your fitness journey.'
+            }
+            iconColor="bg-blue-100 text-blue-600"
+          />
         </div>
       </main>
     </div>

@@ -1,19 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import {
-  Activity,
-  Heart,
   Moon,
   TrendingUp,
   Calendar,
   Clock,
-  BarChart3,
-  Home,
-  Settings,
-  User,
-  LogOut,
-  Bell,
-  ChevronDown,
   Sunrise,
   Sunset,
   CloudMoon,
@@ -21,16 +11,20 @@ import {
   Star,
 } from 'lucide-react';
 import { useSleepStats } from '../hooks/useFitnessData';
-import { authService } from '../services/auth.service';
 import { fitbitService } from '../services/fitbitService';
 import type { FitbitConnectionStatus } from '../services/fitbitService';
+import Header from '../components/Header';
+import { Sidebar, Card, EmptyState, TimeRangeSelector, ChartBar } from '../components/ui';
 
 const Sleep = () => {
-  const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState('week');
   const [fitbitStatus, setFitbitStatus] = useState<FitbitConnectionStatus | null>(null);
 
-  const { data: sleepStats, isLoading } = useSleepStats();
+  const { data: sleepStats, refetch: refetchSleep } = useSleepStats();
+
+  const handleSyncComplete = async () => {
+    await refetchSleep();
+  };
 
   useEffect(() => {
     loadFitbitStatus();
@@ -45,9 +39,6 @@ const Sleep = () => {
     }
   };
 
-  const handleLogout = () => {
-    authService.logout();
-  };
 
   const defaultSleepStats = {
     totalSleep: 0,
@@ -85,8 +76,6 @@ const Sleep = () => {
     { day: 'Sun', hours: 0, score: 0, deep: 0, light: 0, rem: 0 },
   ];
 
-  const maxHours = 10;
-
   const sleepInsights = [
     {
       title: 'Sleep Duration',
@@ -110,144 +99,32 @@ const Sleep = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Sidebar */}
-      <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 shadow-sm">
-        <div className="p-6">
-          <Link to="/dashboard" className="flex items-center space-x-2 mb-8">
-            <Activity className="w-8 h-8 text-blue-600" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Workout Buddy
-            </span>
-          </Link>
-
-          <nav className="space-y-2">
-            <Link
-              to="/dashboard"
-              className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-gray-600 hover:bg-gray-50"
-            >
-              <Home className="w-5 h-5" />
-              <span className="font-medium">Overview</span>
-            </Link>
-
-            <Link
-              to="/activity"
-              className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-gray-600 hover:bg-gray-50"
-            >
-              <Activity className="w-5 h-5" />
-              <span className="font-medium">Activity</span>
-            </Link>
-
-            <Link
-              to="/sleep"
-              className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors bg-blue-50 text-blue-600"
-            >
-              <Moon className="w-5 h-5" />
-              <span className="font-medium">Sleep</span>
-            </Link>
-
-            <Link
-              to="/heart-rate"
-              className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-gray-600 hover:bg-gray-50"
-            >
-              <Heart className="w-5 h-5" />
-              <span className="font-medium">Heart Rate</span>
-            </Link>
-
-            <Link
-              to="/analytics"
-              className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-gray-600 hover:bg-gray-50"
-            >
-              <BarChart3 className="w-5 h-5" />
-              <span className="font-medium">Analytics</span>
-            </Link>
-          </nav>
-
-          <div className="absolute bottom-6 left-6 right-6 space-y-2">
-            <Link
-              to="/settings"
-              className="w-full flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-            >
-              <Settings className="w-5 h-5" />
-              <span className="font-medium">Settings</span>
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-            >
-              <LogOut className="w-5 h-5" />
-              <span className="font-medium">Logout</span>
-            </button>
-          </div>
-        </div>
-      </aside>
+      <Sidebar />
 
       {/* Main Content */}
       <main className="ml-64 min-h-screen">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
-          <div className="px-8 py-4 flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Sleep Tracking</h1>
-              <p className="text-sm text-gray-500 mt-1">
-                Monitor your sleep quality and patterns
-              </p>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <button className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
-                <Bell className="w-6 h-6" />
-              </button>
-
-              <div className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 rounded-lg px-3 py-2 transition-colors">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
-                  <User className="w-6 h-6 text-white" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-medium text-gray-900">User</p>
-                  <p className="text-xs text-gray-500">Free Plan</p>
-                </div>
-                <ChevronDown className="w-4 h-4 text-gray-400" />
-              </div>
-            </div>
-          </div>
-        </header>
+        <Header
+          title="Sleep Tracking"
+          subtitle="Monitor your sleep quality and patterns"
+          showSync={true}
+          onSyncComplete={handleSyncComplete}
+        />
 
         {/* Dashboard Content */}
         <div className="p-8">
           {/* Time Range Selector */}
           <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setTimeRange('day')}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  timeRange === 'day'
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-                }`}
-              >
-                Last Night
-              </button>
-              <button
-                onClick={() => setTimeRange('week')}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  timeRange === 'week'
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-                }`}
-              >
-                Week
-              </button>
-              <button
-                onClick={() => setTimeRange('month')}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  timeRange === 'month'
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-                }`}
-              >
-                Month
-              </button>
-            </div>
+            <TimeRangeSelector
+              value={timeRange}
+              onChange={setTimeRange}
+              options={[
+                { value: 'day', label: 'Last Night' },
+                { value: 'week', label: 'Week' },
+                { value: 'month', label: 'Month' },
+              ]}
+              color="indigo"
+            />
 
             <button className="flex items-center space-x-2 px-4 py-2 bg-white text-gray-600 hover:bg-gray-50 border border-gray-200 rounded-lg transition-colors text-sm font-medium">
               <Calendar className="w-4 h-4" />
@@ -436,7 +313,7 @@ const Sleep = () => {
           </div>
 
           {/* Weekly Sleep Pattern */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-8">
+          <Card className="mb-8">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-bold text-gray-900">Weekly Sleep Pattern</h2>
               <div className="flex items-center space-x-4 text-xs">
@@ -444,36 +321,17 @@ const Sleep = () => {
                   <div className="w-3 h-3 bg-indigo-600 rounded"></div>
                   <span className="text-gray-600">Sleep Hours</span>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <div className="w-3 h-3 bg-purple-600 rounded"></div>
-                  <span className="text-gray-600">Sleep Score</span>
-                </div>
               </div>
             </div>
 
-            <div className="flex items-end justify-between h-64 space-x-4">
-              {weeklyData.map((data, index) => (
-                <div key={index} className="flex-1 flex flex-col items-center">
-                  <div className="w-full flex flex-col justify-end h-full space-y-1">
-                    {/* Sleep Hours Bar */}
-                    <div className="relative group">
-                      <div
-                        className="w-full bg-gradient-to-t from-indigo-600 to-indigo-400 rounded-t-lg transition-all hover:from-indigo-700 hover:to-indigo-500 cursor-pointer"
-                        style={{
-                          height: `${(data.hours / maxHours) * 100}%`,
-                          minHeight: '4px',
-                        }}
-                      ></div>
-                      {/* Tooltip */}
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                        {data.hours}h
-                      </div>
-                    </div>
-                  </div>
-                  <span className="text-xs text-gray-500 mt-2 font-medium">{data.day}</span>
-                </div>
-              ))}
-            </div>
+            <ChartBar
+              data={weeklyData.map((d) => ({
+                label: d.day,
+                value: d.hours,
+              }))}
+              color="from-indigo-600 to-indigo-400"
+              height={256}
+            />
 
             <div className="mt-6 grid grid-cols-3 gap-4">
               <div className="text-center p-3 bg-indigo-50 rounded-lg">
@@ -489,7 +347,7 @@ const Sleep = () => {
                 <div className="text-xl font-bold text-gray-900">--</div>
               </div>
             </div>
-          </div>
+          </Card>
 
           {/* Sleep Tips */}
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100 mb-8">
@@ -522,21 +380,16 @@ const Sleep = () => {
           </div>
 
           {/* Empty State */}
-          <div className="bg-white rounded-2xl p-12 shadow-sm border border-gray-100">
-            <div className="text-center max-w-md mx-auto">
-              <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Moon className="w-8 h-8 text-indigo-600" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">
-                {fitbitStatus?.connected ? 'No Sleep Data for Today' : 'No Sleep Data Yet'}
-              </h3>
-              <p className="text-gray-500">
-                {fitbitStatus?.connected
-                  ? 'Your device is connected. Sleep data will appear here once it syncs. Check back after your next sleep session.'
-                  : 'Go to Settings to connect your fitness device and start tracking your sleep patterns, quality, and get personalized insights.'}
-              </p>
-            </div>
-          </div>
+          <EmptyState
+            icon={Moon}
+            title={fitbitStatus?.connected ? 'No Sleep Data for Today' : 'No Sleep Data Yet'}
+            description={
+              fitbitStatus?.connected
+                ? 'Your device is connected. Sleep data will appear here once it syncs. Check back after your next sleep session.'
+                : 'Go to Settings to connect your fitness device and start tracking your sleep patterns, quality, and get personalized insights.'
+            }
+            iconColor="bg-indigo-100 text-indigo-600"
+          />
         </div>
       </main>
     </div>
