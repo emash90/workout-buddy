@@ -446,6 +446,66 @@ export class FitnessDataService {
     };
   }
 
+  async getTodayStats(userId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to start of day
+
+    // Get today's activity data
+    const activity = await this.activityRepo.findOne({
+      where: { userId, date: today },
+    });
+
+    // Get today's sleep data (might be from last night)
+    const sleep = await this.sleepRepo.findOne({
+      where: { userId, dateOfSleep: new Date(today) },
+      order: { dateOfSleep: 'DESC' },
+    });
+
+    // Get today's heart rate data
+    const heartRate = await this.heartRateRepo.findOne({
+      where: { userId, date: new Date(today) },
+    });
+
+    // Get goals from raw data or use defaults
+    const goals = activity?.rawData?.goals || {};
+
+    return {
+      steps: activity?.steps || 0,
+      stepsGoal: goals.steps || 10000,
+      calories: activity?.calories || 0,
+      caloriesGoal: goals.caloriesOut || 2500,
+      activeMinutes: activity?.activeMinutes || 0,
+      activeMinutesGoal: goals.activeMinutes || 30,
+      heartRate: heartRate?.restingHeartRate || 0,
+      sleep: sleep?.minutesAsleep ? Math.round(sleep.minutesAsleep / 60) : 0,
+      sleepGoal: 8,
+    };
+  }
+
+  async getTodayActivityStats(userId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const activity = await this.activityRepo.findOne({
+      where: { userId, date: today },
+    });
+
+    const goals = activity?.rawData?.goals || {};
+
+    return {
+      steps: activity?.steps || 0,
+      stepsGoal: goals.steps || 10000,
+      distance: parseFloat(activity?.distance?.toString() || '0'),
+      distanceGoal: goals.distance || 8,
+      calories: activity?.calories || 0,
+      caloriesGoal: goals.caloriesOut || 2500,
+      activeMinutes: activity?.activeMinutes || 0,
+      activeMinutesGoal: goals.activeMinutes || 30,
+      floors: activity?.floors || 0,
+      floorsGoal: goals.floors || 10,
+    };
+  }
+
   // ===== HELPER METHODS =====
 
   private transformActivityData(fitbitResponse: any, userId: string, date: string): Partial<ActivityData> {

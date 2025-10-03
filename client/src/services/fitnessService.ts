@@ -67,7 +67,7 @@ export const fitnessService = {
   // Dashboard data
   async getDashboardStats(date?: string): Promise<DashboardStats> {
     const params = date ? { date } : {};
-    const response = await api.get<DashboardStats>('/fitness-data/dashboard', { params });
+    const response = await api.get<DashboardStats>('/fitness-data/today-stats', { params });
     return response.data;
   },
 
@@ -78,7 +78,12 @@ export const fitnessService = {
 
   // Activity data
   async getActivityStats(date?: string): Promise<ActivityStats> {
-    const params = date ? { date } : {};
+    // If no date provided, get today's stats
+    if (!date) {
+      const response = await api.get<ActivityStats>('/fitness-data/activities/today');
+      return response.data;
+    }
+    const params = { date };
     const response = await api.get<ActivityStats>('/fitness-data/activities', { params });
     return response.data;
   },
@@ -158,6 +163,17 @@ export const fitnessService = {
 
   async getFitbitStatus(): Promise<{ connected: boolean; lastSync?: string }> {
     const response = await api.get<{ connected: boolean; lastSync?: string }>('/fitbit/status');
+    return response.data;
+  },
+
+  // Sync fitness data from Fitbit
+  async syncTodayData(): Promise<{ message: string }> {
+    const response = await api.post<{ message: string }>('/fitness-data/sync/today');
+    return response.data;
+  },
+
+  async syncAllData(): Promise<{ message: string }> {
+    const response = await api.post<{ message: string }>('/fitness-data/sync');
     return response.data;
   },
 };

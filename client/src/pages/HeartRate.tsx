@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Activity,
@@ -19,11 +19,27 @@ import {
 } from 'lucide-react';
 import { useHeartRateStats } from '../hooks/useFitnessData';
 import { authService } from '../services/auth.service';
+import { fitbitService } from '../services/fitbitService';
+import type { FitbitConnectionStatus } from '../services/fitbitService';
 
 const HeartRate = () => {
   const [timeRange, setTimeRange] = useState('day');
+  const [fitbitStatus, setFitbitStatus] = useState<FitbitConnectionStatus | null>(null);
 
   const { data: heartRateStats } = useHeartRateStats();
+
+  useEffect(() => {
+    loadFitbitStatus();
+  }, []);
+
+  const loadFitbitStatus = async () => {
+    try {
+      const status = await fitbitService.getConnectionStatus();
+      setFitbitStatus(status);
+    } catch (error) {
+      console.error('Failed to load Fitbit status:', error);
+    }
+  };
 
   const handleLogout = () => {
     authService.logout();
@@ -518,13 +534,11 @@ const HeartRate = () => {
               <h3 className="text-lg font-bold text-gray-900 mb-2">
                 No Heart Rate Data Yet
               </h3>
-              <p className="text-gray-500 mb-6">
-                Connect your Fitbit device to start tracking your heart rate, zones, and
-                cardiovascular fitness throughout the day.
+              <p className="text-gray-500">
+                {fitbitStatus?.connected
+                  ? 'Your device is connected. Heart rate data will appear here once it syncs. Wear your device and check back later.'
+                  : 'Go to Settings to connect your fitness device and start tracking your heart rate, zones, and cardiovascular fitness throughout the day.'}
               </p>
-              <button className="px-6 py-3 bg-gradient-to-r from-rose-600 to-pink-600 text-white rounded-lg font-medium hover:from-rose-700 hover:to-pink-700 transition-all shadow-lg shadow-rose-500/30">
-                Connect Fitbit
-              </button>
             </div>
           </div>
         </div>

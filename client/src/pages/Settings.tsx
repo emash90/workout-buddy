@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Activity,
@@ -23,17 +23,29 @@ import {
   Lock,
   Eye,
   EyeOff,
+  CheckCircle,
+  XCircle,
+  Loader2,
 } from 'lucide-react';
 import { authService } from '../services/auth.service';
+import { fitbitService } from '../services/fitbitService';
+import type { FitbitConnectionStatus } from '../services/fitbitService';
 
 const Settings = () => {
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('profile');
   const [showPassword, setShowPassword] = useState(false);
 
+  // Fitbit connection state
+  const [fitbitStatus, setFitbitStatus] = useState<FitbitConnectionStatus | null>(null);
+  const [isLoadingFitbit, setIsLoadingFitbit] = useState(true);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+
   const handleLogout = () => {
     authService.logout();
   };
+
   const [notifications, setNotifications] = useState({
     email: true,
     push: true,
@@ -49,6 +61,51 @@ const Settings = () => {
     distanceUnit: 'km',
     weightUnit: 'kg',
   });
+
+  // Load Fitbit connection status
+  useEffect(() => {
+    loadFitbitStatus();
+  }, []);
+
+  const loadFitbitStatus = async () => {
+    try {
+      setIsLoadingFitbit(true);
+      const status = await fitbitService.getConnectionStatus();
+      setFitbitStatus(status);
+    } catch (error) {
+      console.error('Failed to load Fitbit status:', error);
+    } finally {
+      setIsLoadingFitbit(false);
+    }
+  };
+
+  const handleConnectFitbit = async () => {
+    try {
+      setIsConnecting(true);
+      await fitbitService.initiateConnection();
+    } catch (error) {
+      console.error('Failed to connect Fitbit:', error);
+      alert('Failed to connect to Fitbit. Please try again.');
+      setIsConnecting(false);
+    }
+  };
+
+  const handleDisconnectFitbit = async () => {
+    if (!confirm('Are you sure you want to disconnect your Fitbit device?')) {
+      return;
+    }
+
+    try {
+      setIsDisconnecting(true);
+      await fitbitService.disconnect();
+      setFitbitStatus({ connected: false });
+    } catch (error) {
+      console.error('Failed to disconnect Fitbit:', error);
+      alert('Failed to disconnect Fitbit. Please try again.');
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
 
   const sections = [
     { id: 'profile', name: 'Profile', icon: User },
@@ -587,13 +644,53 @@ const Settings = () => {
                         <Smartphone className="w-6 h-6 text-blue-600" />
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">Fitbit Device</div>
-                        <div className="text-sm text-gray-500">Not connected</div>
+                        <div className="flex items-center space-x-2">
+                          <div className="font-medium text-gray-900">Fitbit Device</div>
+                          {isLoadingFitbit ? (
+                            <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                          ) : fitbitStatus?.connected ? (
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-gray-400" />
+                          )}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {isLoadingFitbit
+                            ? 'Loading...'
+                            : fitbitStatus?.connected
+                            ? `Connected${
+                                fitbitStatus.connectedAt
+                                  ? ` on ${new Date(fitbitStatus.connectedAt).toLocaleDateString()}`
+                                  : ''
+                              }`
+                            : 'Not connected'}
+                        </div>
+                        {fitbitStatus?.connected && fitbitStatus.fitbitUserId && (
+                          <div className="text-xs text-gray-400 mt-1">
+                            User ID: {fitbitStatus.fitbitUserId}
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                      Connect
-                    </button>
+                    {fitbitStatus?.connected ? (
+                      <button
+                        onClick={handleDisconnectFitbit}
+                        disabled={isDisconnecting}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                      >
+                        {isDisconnecting && <Loader2 className="w-4 h-4 animate-spin" />}
+                        <span>{isDisconnecting ? 'Disconnecting...' : 'Disconnect'}</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleConnectFitbit}
+                        disabled={isConnecting || isLoadingFitbit}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                      >
+                        {isConnecting && <Loader2 className="w-4 h-4 animate-spin" />}
+                        <span>{isConnecting ? 'Connecting...' : 'Connect'}</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 

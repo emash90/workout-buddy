@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Activity,
@@ -22,12 +22,28 @@ import {
 } from 'lucide-react';
 import { useSleepStats } from '../hooks/useFitnessData';
 import { authService } from '../services/auth.service';
+import { fitbitService } from '../services/fitbitService';
+import type { FitbitConnectionStatus } from '../services/fitbitService';
 
 const Sleep = () => {
   const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState('week');
+  const [fitbitStatus, setFitbitStatus] = useState<FitbitConnectionStatus | null>(null);
 
   const { data: sleepStats, isLoading } = useSleepStats();
+
+  useEffect(() => {
+    loadFitbitStatus();
+  }, []);
+
+  const loadFitbitStatus = async () => {
+    try {
+      const status = await fitbitService.getConnectionStatus();
+      setFitbitStatus(status);
+    } catch (error) {
+      console.error('Failed to load Fitbit status:', error);
+    }
+  };
 
   const handleLogout = () => {
     authService.logout();
@@ -511,14 +527,14 @@ const Sleep = () => {
               <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Moon className="w-8 h-8 text-indigo-600" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">No Sleep Data Yet</h3>
-              <p className="text-gray-500 mb-6">
-                Connect your Fitbit device to start tracking your sleep patterns, quality, and get
-                personalized insights.
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                {fitbitStatus?.connected ? 'No Sleep Data for Today' : 'No Sleep Data Yet'}
+              </h3>
+              <p className="text-gray-500">
+                {fitbitStatus?.connected
+                  ? 'Your device is connected. Sleep data will appear here once it syncs. Check back after your next sleep session.'
+                  : 'Go to Settings to connect your fitness device and start tracking your sleep patterns, quality, and get personalized insights.'}
               </p>
-              <button className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-medium hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg shadow-indigo-500/30">
-                Connect Fitbit
-              </button>
             </div>
           </div>
         </div>

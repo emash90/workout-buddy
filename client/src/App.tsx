@@ -9,6 +9,7 @@ import Sleep from './pages/Sleep';
 import HeartRate from './pages/HeartRate';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
+import FitbitCallback from './pages/FitbitCallback';
 
 function App() {
   return (
@@ -62,6 +63,22 @@ function App() {
           element={
             <ProtectedRoute>
               <Settings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/fitbit/success"
+          element={
+            <ProtectedRoute>
+              <FitbitCallback />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/fitbit/error"
+          element={
+            <ProtectedRoute>
+              <FitbitCallback />
             </ProtectedRoute>
           }
         />

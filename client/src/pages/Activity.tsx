@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Activity as ActivityIcon,
@@ -20,15 +20,35 @@ import {
   Zap,
   MapPin,
   ArrowUp,
+  RefreshCw,
 } from 'lucide-react';
 import { useActivityStats, useHourlyActivity } from '../hooks/useFitnessData';
 import { authService } from '../services/auth.service';
+import { fitbitService } from '../services/fitbitService';
+import type { FitbitConnectionStatus } from '../services/fitbitService';
 
 const Activity = () => {
   const [timeRange, setTimeRange] = useState('week');
+  const [fitbitStatus, setFitbitStatus] = useState<FitbitConnectionStatus | null>(null);
+  const [isLoadingStatus, setIsLoadingStatus] = useState(true);
 
   const { data: activityStats } = useActivityStats();
   const { data: hourlyData } = useHourlyActivity();
+
+  useEffect(() => {
+    loadFitbitStatus();
+  }, []);
+
+  const loadFitbitStatus = async () => {
+    try {
+      const status = await fitbitService.getConnectionStatus();
+      setFitbitStatus(status);
+    } catch (error) {
+      console.error('Failed to load Fitbit status:', error);
+    } finally {
+      setIsLoadingStatus(false);
+    }
+  };
 
   const handleLogout = () => {
     authService.logout();
@@ -509,24 +529,24 @@ const Activity = () => {
             </div>
           </div>
 
-          {/* Empty State for No Data */}
-          <div className="mt-6 bg-white rounded-2xl p-12 shadow-sm border border-gray-100">
-            <div className="text-center max-w-md mx-auto">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Zap className="w-8 h-8 text-blue-600" />
+          {/* Empty State for No Data - Only show if no steps data */}
+          {todayStats.steps === 0 && (
+            <div className="mt-6 bg-white rounded-2xl p-12 shadow-sm border border-gray-100">
+              <div className="text-center max-w-md mx-auto">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Zap className="w-8 h-8 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">
+                  {fitbitStatus?.connected ? 'No Data for Today' : 'No Activity Data Yet'}
+                </h3>
+                <p className="text-gray-500">
+                  {fitbitStatus?.connected
+                    ? 'Your device is connected. Data will appear here once it syncs. Try refreshing or check back later.'
+                    : 'Go to Settings to connect your fitness device and start tracking your daily activities, steps, and calories burned.'}
+                </p>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">
-                No Activity Data Yet
-              </h3>
-              <p className="text-gray-500 mb-6">
-                Connect your Fitbit device to start tracking your daily activities, steps, and
-                calories burned.
-              </p>
-              <button className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-500/30">
-                Connect Fitbit
-              </button>
             </div>
-          </div>
+          )}
         </div>
       </main>
     </div>

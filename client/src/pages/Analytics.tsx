@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Activity,
@@ -27,12 +27,28 @@ import {
 } from 'lucide-react';
 import { useDashboardStats } from '../hooks/useFitnessData';
 import { authService } from '../services/auth.service';
+import { fitbitService } from '../services/fitbitService';
+import type { FitbitConnectionStatus } from '../services/fitbitService';
 
 const Analytics = () => {
   const [timeRange, setTimeRange] = useState('month');
   const [selectedMetric, setSelectedMetric] = useState('all');
+  const [fitbitStatus, setFitbitStatus] = useState<FitbitConnectionStatus | null>(null);
 
   const { data: dashboardStats} = useDashboardStats();
+
+  useEffect(() => {
+    loadFitbitStatus();
+  }, []);
+
+  const loadFitbitStatus = async () => {
+    try {
+      const status = await fitbitService.getConnectionStatus();
+      setFitbitStatus(status);
+    } catch (error) {
+      console.error('Failed to load Fitbit status:', error);
+    }
+  };
 
   const handleLogout = () => {
     authService.logout();
@@ -531,8 +547,9 @@ const Analytics = () => {
                 <div className="text-sm opacity-90">out of 100</div>
               </div>
               <p className="text-sm opacity-90">
-                Connect your Fitbit to calculate your fitness score based on activity, sleep, and
-                heart rate data.
+                {fitbitStatus?.connected
+                  ? 'Your device is connected. Your fitness score will be calculated once sufficient data is collected from your activities, sleep, and heart rate.'
+                  : 'Go to Settings to connect your fitness device and calculate your fitness score based on activity, sleep, and heart rate data.'}
               </p>
             </div>
           </div>
@@ -543,14 +560,14 @@ const Analytics = () => {
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <BarChart3 className="w-8 h-8 text-blue-600" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">No Analytics Data Yet</h3>
-              <p className="text-gray-500 mb-6">
-                Connect your Fitbit device to start tracking detailed analytics, trends, and
-                insights about your fitness journey.
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                {fitbitStatus?.connected ? 'No Analytics Data Yet' : 'No Analytics Data Yet'}
+              </h3>
+              <p className="text-gray-500">
+                {fitbitStatus?.connected
+                  ? 'Your device is connected. Analytics and trends will appear here once you have sufficient historical data. Keep using your device to track your fitness journey.'
+                  : 'Go to Settings to connect your fitness device and start tracking detailed analytics, trends, and insights about your fitness journey.'}
               </p>
-              <button className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-500/30">
-                Connect Fitbit
-              </button>
             </div>
           </div>
         </div>

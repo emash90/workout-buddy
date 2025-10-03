@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Activity,
@@ -14,17 +15,42 @@ import {
   LogOut,
   Bell,
   ChevronDown,
+  RefreshCw,
 } from 'lucide-react';
 import { useDashboardStats, useWeeklyActivity } from '../hooks/useFitnessData';
 import { authService } from '../services/auth.service';
+import { fitnessService } from '../services/fitnessService';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { data: stats, isLoading: statsLoading } = useDashboardStats();
-  const { data: weeklyData, isLoading: weeklyLoading } = useWeeklyActivity();
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useDashboardStats();
+  const { data: weeklyData, isLoading: weeklyLoading, refetch: refetchWeekly } = useWeeklyActivity();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   const handleLogout = () => {
     authService.logout();
+  };
+
+  const handleSync = async () => {
+    try {
+      setIsSyncing(true);
+      setSyncMessage(null);
+      await fitnessService.syncTodayData();
+      setSyncMessage('Data synced successfully!');
+
+      // Refetch data after sync
+      await Promise.all([refetchStats(), refetchWeekly()]);
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSyncMessage(null), 3000);
+    } catch (error: any) {
+      console.error('Failed to sync data:', error);
+      setSyncMessage('Failed to sync data. Please try again.');
+      setTimeout(() => setSyncMessage(null), 5000);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   // Default values when data is null or loading
@@ -161,6 +187,28 @@ const Dashboard = () => {
             </div>
 
             <div className="flex items-center space-x-4">
+              {/* Sync Button */}
+              <button
+                onClick={handleSync}
+                disabled={isSyncing}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Sync Fitbit data"
+              >
+                <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span className="text-sm font-medium">{isSyncing ? 'Syncing...' : 'Sync'}</span>
+              </button>
+
+              {/* Sync Message */}
+              {syncMessage && (
+                <div className={`text-sm px-3 py-1 rounded ${
+                  syncMessage.includes('success')
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-red-100 text-red-700'
+                }`}>
+                  {syncMessage}
+                </div>
+              )}
+
               <button className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
                 <Bell className="w-6 h-6" />
               </button>
@@ -444,7 +492,7 @@ const Dashboard = () => {
                 <Activity className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                 <p className="text-gray-500 font-medium">No activities yet</p>
                 <p className="text-sm text-gray-400 mt-1">
-                  Connect your Fitbit to start tracking
+                  Connect your device in Settings to start tracking
                 </p>
               </div>
             </div>

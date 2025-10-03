@@ -65,6 +65,17 @@ export class FitnessDataController {
 
   // ===== ACTIVITY ENDPOINTS =====
 
+  @Get('activities/today')
+  @ApiOperation({
+    summary: 'Get today\'s activity stats',
+    description: 'Get detailed activity stats for today'
+  })
+  @ApiResponse({ status: 200, description: 'Today\'s activity stats retrieved successfully' })
+  async getTodayActivity(@Request() req) {
+    const userId = req.user.userId;
+    return this.fitnessDataService.getTodayActivityStats(userId);
+  }
+
   @Get('activities')
   @ApiOperation({
     summary: 'Get activity data',
@@ -208,5 +219,16 @@ export class FitnessDataController {
   async getDashboard(@Request() req) {
     const userId = req.user.userId;
     return this.fitnessDataService.getDashboard(userId);
+  }
+
+  @Get('today-stats')
+  @ApiOperation({
+    summary: 'Get today\'s stats',
+    description: 'Get today\'s activity, sleep, and heart rate stats for dashboard display'
+  })
+  @ApiResponse({ status: 200, description: 'Today\'s stats retrieved successfully' })
+  async getTodayStats(@Request() req) {
+    const userId = req.user.userId;
+    return this.fitnessDataService.getTodayStats(userId);
   }
 }
