@@ -21,6 +21,36 @@ services:
     networks:
       - workout-buddy-network
 
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile.dev
+    container_name: workout-buddy-ai
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./ai-service/src:/app/src
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/workout_buddy_dev
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      SERPER_API_KEY: ${SERPER_API_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key}
+      ENVIRONMENT: development
+      HOST: 0.0.0.0
+      PORT: 8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - workout-buddy-network
+
   backend:
     build:
       context: ./backend
@@ -43,8 +73,11 @@ services:
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
       DB_NAME: workout_buddy_dev
+      AI_SERVICE_URL: http://ai-service:8000
     depends_on:
       postgres:
+        condition: service_healthy
+      ai-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
