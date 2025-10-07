@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { authService } from '../services/auth.service';
+import { FloatingChat } from './FloatingChat';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -12,5 +13,10 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return <Navigate to="/login" replace />;
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <FloatingChat />
+    </>
+  );
 };

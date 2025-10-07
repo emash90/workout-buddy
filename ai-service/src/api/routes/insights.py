@@ -4,7 +4,7 @@ Insights API Routes
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from typing import List, Dict
+from typing import List, Dict, Union
 from ...agent.fitness_coach import FitnessCoachAgent
 from ...utils.logger import logger
 
@@ -16,7 +16,7 @@ agent = FitnessCoachAgent()
 
 class InsightsRequest(BaseModel):
     """Insights request model."""
-    user_id: int
+    user_id: Union[int, str]  # Support both int and UUID string
     period: str = "week"  # "week", "month", "year"
 
 
@@ -60,12 +60,12 @@ async def generate_insights(request: InsightsRequest):
 
 
 @router.get("/daily")
-async def get_daily_insight(user_id: int = Query(...)):
+async def get_daily_insight(user_id: Union[int, str] = Query(...)):
     """
     Get today's daily insight.
 
     Args:
-        user_id: User ID
+        user_id: User ID (int or UUID string)
 
     Returns:
         Daily insight
@@ -73,12 +73,20 @@ async def get_daily_insight(user_id: int = Query(...)):
     try:
         logger.info(f"Getting daily insight for user {user_id}")
 
-        # Get today's data and weekly data
-        # TODO: Implement with real data
+        # Get real data from database
+        today_data = await agent.fitness_tools.get_today_data(user_id)
+        weekly_data = await agent.fitness_tools.get_daily_data(user_id, 7)
+
+        if not today_data:
+            today_data = {"steps": 0, "calories": 0}
+
+        if not weekly_data:
+            weekly_data = []
+
         insight = agent.insights_tools.get_daily_insight(
             user_id=user_id,
-            today_data={"steps": 8500, "calories": 2500},
-            weekly_data=[{"steps": 8000} for _ in range(7)]
+            today_data=today_data,
+            weekly_data=weekly_data
         )
 
         return insight

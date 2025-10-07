@@ -26,19 +26,23 @@ class FitnessCoachAgent:
         # Configure Google Gemini
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
-            logger.warning("GOOGLE_API_KEY not found - agent will use mock responses")
-            self.model = None
-        else:
-            genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel(
-                model_name='gemini-pro',
-                generation_config={
-                    'temperature': 0.7,
-                    'top_p': 0.95,
-                    'top_k': 40,
-                    'max_output_tokens': 2048,
-                }
+            raise ValueError(
+                "GOOGLE_API_KEY environment variable is required. "
+                "Please set your Google AI API key to use the fitness coach agent."
             )
+
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel(
+            model_name='models/gemini-2.5-flash',
+            generation_config={
+                'temperature': 0.7,
+                'top_p': 0.95,
+                'top_k': 40,
+                'max_output_tokens': 2048,
+            }
+        )
+
+        logger.info("Google Gemini AI configured successfully")
 
         # Initialize tools
         self.fitness_tools = FitnessDataTools()
@@ -51,7 +55,7 @@ class FitnessCoachAgent:
 
     async def chat(
         self,
-        user_id: int,
+        user_id: str,
         message: str,
         conversation_history: Optional[List[Dict]] = None
     ) -> Dict:
@@ -73,11 +77,8 @@ class FitnessCoachAgent:
             # Build conversation prompt
             prompt = self._build_prompt(message, context, conversation_history)
 
-            # Generate response
-            if self.model:
-                response = await self._generate_with_gemini(prompt)
-            else:
-                response = self._generate_mock_response(message, context)
+            # Generate response with Gemini
+            response = await self._generate_with_gemini(prompt)
 
             return {
                 "message": response["text"],
@@ -97,24 +98,24 @@ class FitnessCoachAgent:
 
     async def generate_insights(
         self,
-        user_id: int,
+        user_id: str,
         period: str = "week"
     ) -> Dict:
         """
         Generate personalized insights for user.
 
         Args:
-            user_id: User's ID
+            user_id: User's ID (UUID string)
             period: Time period ("week", "month", "year")
 
         Returns:
             Dictionary with insights
         """
         try:
-            # Get user's fitness data
-            summary = self.fitness_tools.get_fitness_summary(user_id, period)
-            daily_data = self.fitness_tools.get_daily_data(user_id, 30)
-            goals = self.fitness_tools.get_goal_progress(user_id)
+            # Get user's fitness data from database
+            summary = await self.fitness_tools.get_fitness_summary(user_id, period)
+            daily_data = await self.fitness_tools.get_daily_data(user_id, 30)
+            goals = await self.fitness_tools.get_goal_progress(user_id)
 
             # Generate insights using tools
             insights = self.insights_tools.generate_insights(
@@ -176,12 +177,12 @@ class FitnessCoachAgent:
                 "message": "Unable to generate workout plan at this time"
             }
 
-    async def _build_context(self, user_id: int, message: str) -> Dict:
+    async def _build_context(self, user_id: str, message: str) -> Dict:
         """
         Build context about user for the agent.
 
         Args:
-            user_id: User's ID
+            user_id: User's ID (UUID string)
             message: User's message
 
         Returns:
@@ -193,20 +194,20 @@ class FitnessCoachAgent:
         message_lower = message.lower()
 
         # Always get basic summary
-        context["fitness_summary"] = self.fitness_tools.get_fitness_summary(user_id, "week")
+        context["fitness_summary"] = await self.fitness_tools.get_fitness_summary(user_id, "week")
 
         # Get goals if mentioned
         if any(word in message_lower for word in ["goal", "progress", "achieve", "target"]):
-            context["goals"] = self.fitness_tools.get_goal_progress(user_id)
+            context["goals"] = await self.fitness_tools.get_goal_progress(user_id)
 
         # Get daily data for trends
         if any(word in message_lower for word in ["trend", "pattern", "improve", "week", "month"]):
-            context["daily_data"] = self.fitness_tools.get_daily_data(user_id, 30)
-            context["trends"] = self.fitness_tools.get_activity_trends(user_id, 30)
+            context["daily_data"] = await self.fitness_tools.get_daily_data(user_id, 30)
+            context["trends"] = await self.fitness_tools.get_activity_trends(user_id, 30)
 
         # Get weekly breakdown
         if any(word in message_lower for word in ["day", "monday", "tuesday", "weekend"]):
-            context["weekly_breakdown"] = self.fitness_tools.get_weekly_breakdown(user_id)
+            context["weekly_breakdown"] = await self.fitness_tools.get_weekly_breakdown(user_id)
 
         return context
 
@@ -306,63 +307,3 @@ Provide a helpful, personalized response based on the user's data and context ab
                 "error": str(e)
             }
 
-    def _generate_mock_response(self, message: str, context: Dict) -> Dict:
-        """
-        Generate mock response when API key is not available.
-
-        Args:
-            message: User message
-            context: Context data
-
-        Returns:
-            Mock response dictionary
-        """
-        message_lower = message.lower()
-
-        # Simple keyword-based responses
-        if "how am i doing" in message_lower or "progress" in message_lower:
-            summary = context.get("fitness_summary", {})
-            response = f"""Looking at your recent activity, here's how you're doing:
-
-📊 **This Week's Stats**:
-- Average Steps: {summary.get('avg_steps', 0):,}/day
-- You've been active {summary.get('days_active', 0)} out of {summary.get('total_days', 7)} days
-
-You're making progress! Keep up the consistent effort. 🎯
-"""
-        elif "workout" in message_lower or "exercise" in message_lower:
-            response = """I can help you with workout recommendations! Tell me:
-
-1. What's your main goal? (muscle gain, weight loss, endurance, etc.)
-2. How many days per week can you train?
-3. What equipment do you have access to?
-
-I'll create a personalized plan for you! 💪
-"""
-        elif "goal" in message_lower:
-            response = """Let's work on your fitness goals! 🎯
-
-I can help you:
-- Set realistic, achievable goals
-- Track your progress
-- Adjust your plan as needed
-- Stay motivated
-
-What specific goal would you like to focus on?
-"""
-        else:
-            response = """I'm your AI fitness coach! I can help you with:
-
-- 📊 Analyzing your fitness data and progress
-- 💪 Creating personalized workout plans
-- 🎯 Setting and tracking goals
-- 📈 Providing insights and recommendations
-
-What would you like to work on today?
-"""
-
-        return {
-            "text": response,
-            "sources": [],
-            "tools_used": ["mock_response"]
-        }

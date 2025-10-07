@@ -2,9 +2,9 @@
 Recommendations API Routes
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Union
 from ...agent.fitness_coach import FitnessCoachAgent
 from ...utils.logger import logger
 
@@ -16,7 +16,7 @@ agent = FitnessCoachAgent()
 
 class WorkoutPlanRequest(BaseModel):
     """Workout plan request model."""
-    user_id: int
+    user_id: Union[int, str]  # Support both int and UUID string
     goal: str
     duration_weeks: int = 8
     days_per_week: int = 4
@@ -61,24 +61,33 @@ async def generate_workout_plan(request: WorkoutPlanRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/quick-workout")
-async def get_quick_workout(request: QuickWorkoutRequest):
+@router.get("/quick-workout")
+async def get_quick_workout(
+    goal: str = Query(..., description="Fitness goal"),
+    duration_minutes: int = Query(20, description="Workout duration in minutes"),
+    equipment: Optional[str] = Query(None, description="Comma-separated equipment list")
+):
     """
     Get a quick workout suggestion for today.
 
     Args:
-        request: Quick workout request
+        goal: Fitness goal (e.g., "weight_loss", "muscle_gain")
+        duration_minutes: Workout duration in minutes (default: 20)
+        equipment: Comma-separated equipment list (optional)
 
     Returns:
         Quick workout details
     """
     try:
-        logger.info(f"Generating quick workout, goal: {request.goal}")
+        logger.info(f"Generating quick workout, goal: {goal}")
+
+        # Parse equipment list
+        equipment_list = equipment.split(',') if equipment else []
 
         workout = agent.workout_tools.suggest_quick_workout(
-            goal=request.goal,
-            duration_minutes=request.duration_minutes,
-            equipment=request.equipment
+            goal=goal,
+            duration_minutes=duration_minutes,
+            equipment=equipment_list
         )
 
         return workout

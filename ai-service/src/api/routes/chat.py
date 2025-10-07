@@ -4,7 +4,7 @@ Chat API Routes
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Union
 from ...agent.fitness_coach import FitnessCoachAgent
 from ...utils.logger import logger
 
@@ -16,7 +16,7 @@ agent = FitnessCoachAgent()
 
 class ChatRequest(BaseModel):
     """Chat request model."""
-    user_id: int
+    user_id: Union[int, str]  # Support both int and UUID string
     message: str
     conversation_id: Optional[str] = None
 
