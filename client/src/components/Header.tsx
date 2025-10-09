@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Bell, ChevronDown, RefreshCw, User } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Bell, ChevronDown, RefreshCw, User, Calendar } from 'lucide-react';
 import { authService } from '../services/auth.service';
 import { fitnessService } from '../services/fitnessService';
 import type { User as UserType } from '../types/auth.types';
@@ -15,6 +15,8 @@ const Header = ({ title, subtitle, showSync = true, onSyncComplete }: HeaderProp
   const [user, setUser] = useState<UserType | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [showSyncMenu, setShowSyncMenu] = useState(false);
+  const syncMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -28,12 +30,39 @@ const Header = ({ title, subtitle, showSync = true, onSyncComplete }: HeaderProp
     fetchUser();
   }, []);
 
-  const handleSync = async () => {
+  // Close sync menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (syncMenuRef.current && !syncMenuRef.current.contains(event.target as Node)) {
+        setShowSyncMenu(false);
+      }
+    };
+
+    if (showSyncMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSyncMenu]);
+
+  const handleSync = async (type: 'today' | 'historical' = 'today') => {
     try {
       setIsSyncing(true);
       setSyncMessage(null);
-      await fitnessService.syncTodayData();
-      setSyncMessage('Data synced successfully!');
+      setShowSyncMenu(false);
+
+      if (type === 'historical') {
+        setSyncMessage('Syncing historical data (90 days)...');
+        const result = await fitnessService.syncHistoricalData(90);
+        console.log('Historical sync result:', result);
+        setSyncMessage('Historical data synced successfully!');
+      } else {
+        const result = await fitnessService.syncTodayData();
+        console.log('Today sync result:', result);
+        setSyncMessage('Data synced successfully!');
+      }
 
       // Call the callback to refetch data
       if (onSyncComplete) {
@@ -44,7 +73,9 @@ const Header = ({ title, subtitle, showSync = true, onSyncComplete }: HeaderProp
       setTimeout(() => setSyncMessage(null), 3000);
     } catch (error: any) {
       console.error('Failed to sync data:', error);
-      setSyncMessage('Failed to sync data. Please try again.');
+      console.error('Error response:', error.response?.data);
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to sync data. Please try again.';
+      setSyncMessage(errorMsg);
       setTimeout(() => setSyncMessage(null), 5000);
     } finally {
       setIsSyncing(false);
@@ -63,15 +94,44 @@ const Header = ({ title, subtitle, showSync = true, onSyncComplete }: HeaderProp
           {/* Sync Button */}
           {showSync && (
             <>
-              <button
-                onClick={handleSync}
-                disabled={isSyncing}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Sync Fitbit data"
-              >
-                <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span className="text-sm font-medium">{isSyncing ? 'Syncing...' : 'Sync'}</span>
-              </button>
+              <div className="relative" ref={syncMenuRef}>
+                <button
+                  onClick={() => setShowSyncMenu(!showSyncMenu)}
+                  disabled={isSyncing}
+                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Sync Fitbit data"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                  <span className="text-sm font-medium">{isSyncing ? 'Syncing...' : 'Sync'}</span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+
+                {/* Sync Dropdown Menu */}
+                {showSyncMenu && !isSyncing && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                    <button
+                      onClick={() => handleSync('today')}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center space-x-3 text-sm"
+                    >
+                      <RefreshCw className="w-4 h-4 text-blue-600" />
+                      <div>
+                        <p className="font-medium text-gray-900">Sync Today</p>
+                        <p className="text-xs text-gray-500">Quick sync for today's data</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => handleSync('historical')}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center space-x-3 text-sm"
+                    >
+                      <Calendar className="w-4 h-4 text-blue-600" />
+                      <div>
+                        <p className="font-medium text-gray-900">Sync Historical</p>
+                        <p className="text-xs text-gray-500">Sync last 90 days of data</p>
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {/* Sync Message */}
               {syncMessage && (

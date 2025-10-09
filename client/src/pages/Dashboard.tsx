@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Target, Flame, Footprints, Clock, Heart, Moon, Activity, Sparkles, TrendingUp, Lightbulb } from 'lucide-react';
+import { Target, Flame, Footprints, Clock, Heart, Moon, Activity, Sparkles, TrendingUp, Lightbulb, RefreshCw } from 'lucide-react';
 import { useDashboardStats, useWeeklyActivity } from '../hooks/useFitnessData';
 import Header from '../components/Header';
 import { Sidebar, StatCard, Card, ChartBar, MetricItem } from '../components/ui';
@@ -12,6 +12,7 @@ const Dashboard = () => {
   const [weeklyMetric, setWeeklyMetric] = useState<'steps' | 'calories'>('steps');
   const [dailyInsight, setDailyInsight] = useState<DailyInsight | null>(null);
   const [monthlyInsights, setMonthlyInsights] = useState<Insight | null>(null);
+  const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
 
   useEffect(() => {
     const fetchInsights = async () => {
@@ -39,6 +40,18 @@ const Dashboard = () => {
 
   const handleSyncComplete = async () => {
     await Promise.all([refetchStats(), refetchWeekly()]);
+  };
+
+  const handleGenerateFreshInsights = async () => {
+    try {
+      setIsGeneratingInsights(true);
+      const freshInsights = await aiService.generateWeeklyInsights();
+      setMonthlyInsights(freshInsights);
+    } catch (error) {
+      console.error('Failed to generate fresh insights:', error);
+    } finally {
+      setIsGeneratingInsights(false);
+    }
   };
 
   // Default values when data is null or loading
@@ -343,14 +356,25 @@ const Dashboard = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Trends & Patterns */}
                 <Card>
-                  <div className="flex items-center space-x-2 mb-4">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                      <TrendingUp className="w-5 h-5 text-white" />
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <TrendingUp className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900">Weekly Insights</h3>
+                        <p className="text-xs text-gray-500">AI-powered analysis of last 7 days</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900">Monthly Trends</h3>
-                      <p className="text-xs text-gray-500">Based on your last 30 days</p>
-                    </div>
+                    <button
+                      onClick={handleGenerateFreshInsights}
+                      disabled={isGeneratingInsights}
+                      className="flex items-center space-x-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Generate fresh insights"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${isGeneratingInsights ? 'animate-spin' : ''}`} />
+                      <span>{isGeneratingInsights ? 'Generating...' : 'Refresh'}</span>
+                    </button>
                   </div>
 
                   {/* Stats Summary */}

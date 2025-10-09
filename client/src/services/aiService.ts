@@ -128,6 +128,14 @@ const aiService = {
       params: { conversationId },
     });
   },
+
+  /**
+   * Generate fresh weekly insights based on last 7 days
+   */
+  async generateWeeklyInsights(): Promise<any> {
+    const response = await api.post('/ai/weekly-insights');
+    return response.data;
+  },
 };
 
 export default aiService;

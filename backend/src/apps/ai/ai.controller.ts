@@ -4,7 +4,6 @@ import {
   Get,
   Body,
   UseGuards,
-  Req,
   Query,
   Request,
 } from '@nestjs/common';
@@ -78,6 +77,19 @@ export class AiController {
   })
   async getDailyInsight(@Request() req: any) {
     return this.aiService.getDailyInsight(req.user.userId);
+  }
+
+  @Post('weekly-insights')
+  @ApiOperation({
+    summary: 'Generate fresh weekly insights',
+    description: 'Generate detailed AI insights based on the last 7 days of workout data',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Weekly insights generated',
+  })
+  async generateWeeklyInsights(@Request() req: any) {
+    return this.aiService.generateWeeklyInsights(req.user.userId);
   }
 
   @Post('workout-plan')

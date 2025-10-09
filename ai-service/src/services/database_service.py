@@ -65,21 +65,22 @@ class DatabaseService:
 
         query = """
             SELECT
-                date,
-                steps,
-                distance,
-                calories_burned as calories,
-                active_minutes,
-                floors_climbed,
-                very_active_minutes,
-                fairly_active_minutes,
-                lightly_active_minutes,
-                resting_heart_rate
-            FROM fitness_data
-            WHERE user_id = $1
-                AND date >= $2
-                AND date <= $3
-            ORDER BY date DESC
+                a.date,
+                a.steps,
+                a.distance,
+                a.calories,
+                a."activeMinutes" as active_minutes,
+                a.floors,
+                a."veryActiveMinutes" as very_active_minutes,
+                a."fairlyActiveMinutes" as fairly_active_minutes,
+                a."lightlyActiveMinutes" as lightly_active_minutes,
+                COALESCE(h."restingHeartRate", 0) as resting_heart_rate
+            FROM activity_data a
+            LEFT JOIN heart_rate_data h ON a."userId" = h."userId" AND a.date = h.date
+            WHERE a."userId" = $1
+                AND a.date >= $2
+                AND a.date <= $3
+            ORDER BY a.date DESC
         """
 
         try:
@@ -98,7 +99,7 @@ class DatabaseService:
                         "distance": float(row["distance"] or 0),
                         "calories": row["calories"] or 0,
                         "active_minutes": row["active_minutes"] or 0,
-                        "floors": row["floors_climbed"] or 0,
+                        "floors": row["floors"] or 0,
                         "heart_rate_avg": row["resting_heart_rate"] or 0,
                         "very_active_minutes": row["very_active_minutes"] or 0,
                         "fairly_active_minutes": row["fairly_active_minutes"] or 0,
@@ -134,17 +135,18 @@ class DatabaseService:
         query = """
             SELECT
                 COUNT(*) as total_days,
-                AVG(steps) as avg_steps,
-                SUM(distance) as total_distance,
-                SUM(calories_burned) as total_calories,
-                SUM(active_minutes) as total_active_minutes,
-                AVG(resting_heart_rate) as avg_heart_rate,
-                SUM(floors_climbed) as floors_climbed,
-                COUNT(CASE WHEN steps >= 5000 THEN 1 END) as days_active
-            FROM fitness_data
-            WHERE user_id = $1
-                AND date >= $2
-                AND date <= $3
+                AVG(a.steps) as avg_steps,
+                SUM(a.distance) as total_distance,
+                SUM(a.calories) as total_calories,
+                SUM(a."activeMinutes") as total_active_minutes,
+                AVG(h."restingHeartRate") as avg_heart_rate,
+                SUM(a.floors) as floors_climbed,
+                COUNT(CASE WHEN a.steps >= 5000 THEN 1 END) as days_active
+            FROM activity_data a
+            LEFT JOIN heart_rate_data h ON a."userId" = h."userId" AND a.date = h.date
+            WHERE a."userId" = $1
+                AND a.date >= $2
+                AND a.date <= $3
         """
 
         try:
@@ -245,15 +247,16 @@ class DatabaseService:
 
         query = """
             SELECT
-                steps,
-                distance,
-                calories_burned as calories,
-                active_minutes,
-                floors_climbed,
-                resting_heart_rate
-            FROM fitness_data
-            WHERE user_id = $1
-                AND date = $2
+                a.steps,
+                a.distance,
+                a.calories,
+                a."activeMinutes" as active_minutes,
+                a.floors,
+                COALESCE(h."restingHeartRate", 0) as resting_heart_rate
+            FROM activity_data a
+            LEFT JOIN heart_rate_data h ON a."userId" = h."userId" AND a.date = h.date
+            WHERE a."userId" = $1
+                AND a.date = $2
         """
 
         try:
@@ -272,7 +275,7 @@ class DatabaseService:
                     "distance": float(row["distance"] or 0),
                     "calories": row["calories"] or 0,
                     "active_minutes": row["active_minutes"] or 0,
-                    "floors": row["floors_climbed"] or 0,
+                    "floors": row["floors"] or 0,
                     "heart_rate": row["resting_heart_rate"] or 0
                 }
 

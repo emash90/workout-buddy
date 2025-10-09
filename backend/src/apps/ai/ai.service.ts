@@ -193,6 +193,33 @@ export class AiService {
   }
 
   /**
+   * Generate fresh weekly insights based on last 7 days
+   */
+  async generateWeeklyInsights(userId: string | number): Promise<any> {
+    try {
+      if (!userId) {
+        this.logger.error(`Invalid user ID: ${userId}`);
+        throw new HttpException(
+          'User ID is required',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      this.logger.log(`Weekly insights request from user ${userId}`);
+
+      const response: AxiosResponse<any> = await firstValueFrom(
+        this.httpService.post(`${this.aiServiceUrl}/insights/weekly`, {
+          user_id: userId,
+        }),
+      );
+
+      return response.data;
+    } catch (error) {
+      this.handleError('weekly insights', error);
+    }
+  }
+
+  /**
    * Handle errors from AI service
    */
   private handleError(operation: string, error: any): never {

@@ -181,8 +181,18 @@ export const fitnessService = {
     return response.data;
   },
 
-  async syncAllData(): Promise<{ message: string }> {
-    const response = await api.post<{ message: string }>('/fitness-data/sync');
+  async syncAllData(startDate?: string, endDate?: string): Promise<{ message: string }> {
+    const response = await api.post<{ message: string }>('/fitness-data/sync', {
+      startDate,
+      endDate,
+    });
+    return response.data;
+  },
+
+  async syncHistoricalData(days: number = 90): Promise<{ message: string }> {
+    const response = await api.post<{ message: string }>('/fitness-data/sync/historical', {
+      days,
+    });
     return response.data;
   },
 };

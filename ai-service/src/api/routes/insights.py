@@ -94,3 +94,40 @@ async def get_daily_insight(user_id: Union[int, str] = Query(...)):
     except Exception as e:
         logger.error(f"Daily insight error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class WeeklyInsightsRequest(BaseModel):
+    """Weekly insights request model."""
+    user_id: Union[int, str]  # Support both int and UUID string
+
+
+@router.post("/weekly", response_model=InsightsResponse)
+async def generate_weekly_insights(request: WeeklyInsightsRequest):
+    """
+    Generate fresh AI insights based on last 7 days of workout data.
+
+    Args:
+        request: Weekly insights request with user_id
+
+    Returns:
+        Generated insights, patterns, and AI-powered recommendations
+    """
+    try:
+        logger.info(f"Generating weekly insights for user {request.user_id}")
+
+        # Generate insights for the last 7 days
+        result = await agent.generate_insights(
+            user_id=request.user_id,
+            period="week"
+        )
+
+        return InsightsResponse(
+            insights=result.get("insights", []),
+            patterns=result.get("patterns", {}),
+            stats=result.get("patterns", {}).get("stats", {}),
+            period="week"
+        )
+
+    except Exception as e:
+        logger.error(f"Weekly insights error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
