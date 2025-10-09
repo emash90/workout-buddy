@@ -193,6 +193,10 @@ class FitnessCoachAgent:
         # Determine what data is relevant based on message
         message_lower = message.lower()
 
+        # Get today's data if asking about today
+        if any(word in message_lower for word in ["today", "today's", "current", "now", "so far"]):
+            context["today_data"] = await self.fitness_tools.get_today_data(user_id)
+
         # Always get basic summary
         context["fitness_summary"] = await self.fitness_tools.get_fitness_summary(user_id, "week")
 
@@ -232,6 +236,17 @@ class FitnessCoachAgent:
 
         # Build context section
         context_section = "\n\n## User Context\n\n"
+
+        if "today_data" in context and context["today_data"]:
+            today = context["today_data"]
+            context_section += f"""
+**Today's Activity (Real-Time)**:
+- Steps: {today['steps']:,}
+- Distance: {today['distance']:.2f} km
+- Calories: {today['calories']:,}
+- Active Minutes: {today['active_minutes']}
+- Floors: {today['floors']}
+"""
 
         if "fitness_summary" in context:
             summary = context["fitness_summary"]

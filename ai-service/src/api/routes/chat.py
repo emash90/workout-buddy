@@ -2,8 +2,8 @@
 Chat API Routes
 """
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException  # type: ignore
+from pydantic import BaseModel  # type: ignore
 from typing import List, Optional, Dict, Union
 from ...agent.fitness_coach import FitnessCoachAgent
 from ...utils.logger import logger
@@ -46,9 +46,9 @@ async def chat(request: ChatRequest):
         # TODO: Load conversation history from database if conversation_id provided
         conversation_history = []
 
-        # Generate response
+        # Generate response (convert user_id to string)
         response = await agent.chat(
-            user_id=request.user_id,
+            user_id=str(request.user_id),
             message=request.message,
             conversation_history=conversation_history
         )
@@ -93,13 +93,13 @@ async def get_chat_history(conversation_id: str, user_id: int):
 
 
 @router.delete("/history")
-async def clear_chat_history(user_id: int, conversation_id: str):
+async def clear_chat_history(_user_id: int, _conversation_id: str):
     """
     Clear chat history for a conversation.
 
     Args:
-        user_id: User ID
-        conversation_id: Conversation ID
+        _user_id: User ID (unused until database implementation)
+        _conversation_id: Conversation ID (unused until database implementation)
 
     Returns:
         Success message

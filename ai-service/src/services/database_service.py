@@ -5,9 +5,9 @@ Service for querying fitness data from PostgreSQL database.
 """
 
 import os
-from typing import List, Dict, Optional
-from datetime import datetime, timedelta
-import asyncpg
+from typing import List, Dict, Optional, Any
+from datetime import datetime
+import asyncpg  # type: ignore
 from ..utils.logger import logger
 
 
@@ -16,7 +16,7 @@ class DatabaseService:
 
     def __init__(self):
         """Initialize database service."""
-        self.pool = None
+        self.pool: Optional[asyncpg.Pool] = None
         self.database_url = os.getenv("DATABASE_URL")
 
         if not self.database_url:
@@ -48,7 +48,7 @@ class DatabaseService:
         user_id: str,
         start_date: datetime,
         end_date: datetime
-    ) -> List[Dict]:
+    ) -> List[Dict[str, Any]]:
         """
         Get user's fitness data for date range.
 
@@ -84,6 +84,7 @@ class DatabaseService:
         """
 
         try:
+            assert self.pool is not None
             async with self.pool.acquire() as conn:
                 rows = await conn.fetch(
                     query,
@@ -117,7 +118,7 @@ class DatabaseService:
         user_id: str,
         start_date: datetime,
         end_date: datetime
-    ) -> Dict:
+    ) -> Optional[Dict[str, Any]]:
         """
         Get aggregated fitness summary for period.
 
@@ -150,6 +151,7 @@ class DatabaseService:
         """
 
         try:
+            assert self.pool is not None
             async with self.pool.acquire() as conn:
                 row = await conn.fetchrow(
                     query,
@@ -180,7 +182,7 @@ class DatabaseService:
             logger.error(f"Error fetching fitness summary: {e}")
             return None
 
-    async def get_user_goals(self, user_id: str) -> List[Dict]:
+    async def get_user_goals(self, user_id: str) -> List[Dict[str, Any]]:
         """
         Get user's active goals.
 
@@ -210,6 +212,7 @@ class DatabaseService:
         """
 
         try:
+            assert self.pool is not None
             async with self.pool.acquire() as conn:
                 rows = await conn.fetch(query, user_id)
 
@@ -232,7 +235,7 @@ class DatabaseService:
             logger.error(f"Error fetching goals: {e}")
             return []
 
-    async def get_today_fitness_data(self, user_id: str) -> Optional[Dict]:
+    async def get_today_fitness_data(self, user_id: str) -> Optional[Dict[str, Any]]:
         """
         Get today's fitness data for user.
 
@@ -260,6 +263,7 @@ class DatabaseService:
         """
 
         try:
+            assert self.pool is not None
             async with self.pool.acquire() as conn:
                 row = await conn.fetchrow(
                     query,

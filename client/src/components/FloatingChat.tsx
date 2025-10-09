@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { MessageSquare, X, Send } from 'lucide-react';
+import { MessageSquare, X, Send, Trash2 } from 'lucide-react';
 import aiService from '../services/aiService';
 import type { ChatMessage, ChatResponse } from '../services/aiService';
 
@@ -9,6 +9,7 @@ export const FloatingChat = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | undefined>();
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -97,6 +98,32 @@ export const FloatingChat = () => {
     }
   };
 
+  const handleClearConversation = () => {
+    if (window.confirm('Are you sure you want to clear this conversation? This cannot be undone.')) {
+      setMessages([]);
+      setConversationId(undefined);
+      localStorage.removeItem('ai_chat_messages');
+      localStorage.removeItem('ai_conversation_id');
+    }
+  };
+
+  // Mark messages as read when chat is opened
+  useEffect(() => {
+    if (isOpen) {
+      setHasUnreadMessages(false);
+    }
+  }, [isOpen]);
+
+  // Set unread flag when new assistant message arrives and chat is closed
+  useEffect(() => {
+    if (!isOpen && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role === 'assistant') {
+        setHasUnreadMessages(true);
+      }
+    }
+  }, [messages, isOpen]);
+
   return (
     <>
       {/* Chat Window */}
@@ -113,12 +140,24 @@ export const FloatingChat = () => {
                 <p className="text-xs text-white text-opacity-80">Powered by Gemini</p>
               </div>
             </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="hover:bg-white hover:bg-opacity-20 rounded-lg p-1 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center space-x-2">
+              {messages.length > 0 && (
+                <button
+                  onClick={handleClearConversation}
+                  className="hover:bg-white hover:bg-opacity-20 rounded-lg p-1 transition-colors"
+                  title="Clear conversation"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              )}
+              <button
+                onClick={() => setIsOpen(false)}
+                className="hover:bg-white hover:bg-opacity-20 rounded-lg p-1 transition-colors"
+                title="Close chat"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Messages */}
@@ -205,9 +244,9 @@ export const FloatingChat = () => {
         ) : (
           <>
             <MessageSquare className="w-6 h-6" />
-            {messages.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                {messages.length}
+            {hasUnreadMessages && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
+                !
               </span>
             )}
           </>
