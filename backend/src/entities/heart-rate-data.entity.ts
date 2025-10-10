@@ -50,6 +50,13 @@ export class HeartRateData {
   @Column({ type: 'jsonb', nullable: true })
   rawData: any;
 
+  @Column({
+    type: 'varchar',
+    length: 10,
+    default: 'fitbit'
+  })
+  dataSource: 'fitbit' | 'whoop';
+
   @CreateDateColumn()
   createdAt: Date;
 

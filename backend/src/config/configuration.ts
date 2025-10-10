@@ -20,4 +20,13 @@ export default () => ({
     tokenUrl: 'https://api.fitbit.com/oauth2/token',
     apiBaseUrl: 'https://api.fitbit.com',
   },
+  whoop: {
+    clientId: process.env.WHOOP_CLIENT_ID,
+    clientSecret: process.env.WHOOP_CLIENT_SECRET,
+    redirectUri: process.env.WHOOP_REDIRECT_URI || 'http://localhost:3000/whoop/callback',
+    scope: 'read:recovery read:cycles read:sleep read:workout read:profile read:body_measurement',
+    authUrl: 'https://api.prod.whoop.com/oauth/oauth2/auth',
+    tokenUrl: 'https://api.prod.whoop.com/oauth/oauth2/token',
+    apiBaseUrl: 'https://api.prod.whoop.com/developer',
+  },
 });
