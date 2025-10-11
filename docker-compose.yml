@@ -4,10 +4,8 @@ services:
     image: postgres:15-alpine
     container_name: workout-buddy-postgres
     restart: always
-    environment:
-      POSTGRES_DB: workout_buddy_dev
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+    env_file:
+      - .env
     ports:
       - "5432:5432"
     volumes:
@@ -27,18 +25,14 @@ services:
       dockerfile: Dockerfile.dev
     container_name: workout-buddy-ai
     restart: always
+    env_file:
+      - .env
+    environment:
+      PORT: ${AI_SERVICE_PORT}
     ports:
       - "8000:8000"
     volumes:
       - ./ai-service/src:/app/src
-    environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/workout_buddy_dev
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
-      SERPER_API_KEY: ${SERPER_API_KEY:-}
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key}
-      ENVIRONMENT: development
-      HOST: 0.0.0.0
-      PORT: 8000
     depends_on:
       postgres:
         condition: service_healthy
@@ -57,23 +51,14 @@ services:
       dockerfile: Dockerfile
     container_name: workout-buddy-backend
     restart: always
+    env_file:
+      - .env
     ports:
       - "3000:3000"
     volumes:
       - ./backend/src:/app/src
       - ./backend/tsconfig.json:/app/tsconfig.json
       - ./backend/tsconfig.build.json:/app/tsconfig.build.json
-    env_file:
-      - ./backend/.env
-    environment:
-      NODE_ENV: development
-      PORT: 3000
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USERNAME: postgres
-      DB_PASSWORD: postgres
-      DB_NAME: workout_buddy_dev
-      AI_SERVICE_URL: http://ai-service:8000
     depends_on:
       postgres:
         condition: service_healthy
@@ -93,6 +78,8 @@ services:
       dockerfile: Dockerfile.dev
     container_name: workout-buddy-client
     restart: always
+    env_file:
+      - .env
     ports:
       - "5173:5173"
     volumes:
@@ -104,9 +91,6 @@ services:
       - ./client/postcss.config.js:/app/postcss.config.js
       - ./client/tsconfig.json:/app/tsconfig.json
       - ./client/tsconfig.app.json:/app/tsconfig.app.json
-      - ./client/.env:/app/.env
-    environment:
-      - VITE_API_URL=http://localhost:3000
     depends_on:
       - backend
     networks:

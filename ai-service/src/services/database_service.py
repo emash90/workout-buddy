@@ -184,13 +184,13 @@ class DatabaseService:
 
     async def get_user_goals(self, user_id: str) -> List[Dict[str, Any]]:
         """
-        Get user's active goals.
+        Get user's fitness goals and targets.
 
         Args:
             user_id: User's ID
 
         Returns:
-            List of goals with progress
+            List with user's goals (typically one record)
         """
         if not self.pool:
             await self.connect()
@@ -198,17 +198,28 @@ class DatabaseService:
         query = """
             SELECT
                 id,
-                type as goal_type,
-                target_value,
-                current_value,
-                start_date,
-                target_date,
-                status,
-                created_at
-            FROM goals
+                "fitnessGoal" as fitness_goal,
+                "currentWeight" as current_weight,
+                "targetWeight" as target_weight,
+                height,
+                "currentBMI" as current_bmi,
+                "idealBMI" as ideal_bmi,
+                age,
+                gender,
+                "activityLevel" as activity_level,
+                "dailyStepsGoal" as daily_steps_goal,
+                "dailyCaloriesBurnGoal" as daily_calories_burn_goal,
+                "dailyActiveMinutesGoal" as daily_active_minutes_goal,
+                "dailySleepHoursGoal" as daily_sleep_hours_goal,
+                "weeklyWorkoutsGoal" as weekly_workouts_goal,
+                "aiRecommendationsEnabled" as ai_recommendations_enabled,
+                "aiRecommendations" as ai_recommendations,
+                "createdAt" as created_at,
+                "updatedAt" as updated_at
+            FROM user_goals
             WHERE user_id = $1
-                AND status = 'active'
-            ORDER BY created_at DESC
+            ORDER BY "updatedAt" DESC
+            LIMIT 1
         """
 
         try:
@@ -219,14 +230,24 @@ class DatabaseService:
                 return [
                     {
                         "id": row["id"],
-                        "goal_type": row["goal_type"],
-                        "target_value": float(row["target_value"]),
-                        "current_value": float(row["current_value"] or 0),
-                        "progress_percentage": int((float(row["current_value"] or 0) / float(row["target_value"])) * 100) if row["target_value"] > 0 else 0,
-                        "status": row["status"],
+                        "fitness_goal": row["fitness_goal"],
+                        "current_weight": float(row["current_weight"]) if row["current_weight"] else None,
+                        "target_weight": float(row["target_weight"]) if row["target_weight"] else None,
+                        "height": float(row["height"]) if row["height"] else None,
+                        "current_bmi": float(row["current_bmi"]) if row["current_bmi"] else None,
+                        "ideal_bmi": float(row["ideal_bmi"]) if row["ideal_bmi"] else None,
+                        "age": row["age"],
+                        "gender": row["gender"],
+                        "activity_level": row["activity_level"],
+                        "daily_steps_goal": row["daily_steps_goal"],
+                        "daily_calories_burn_goal": row["daily_calories_burn_goal"],
+                        "daily_active_minutes_goal": row["daily_active_minutes_goal"],
+                        "daily_sleep_hours_goal": float(row["daily_sleep_hours_goal"]) if row["daily_sleep_hours_goal"] else None,
+                        "weekly_workouts_goal": row["weekly_workouts_goal"],
+                        "ai_recommendations_enabled": row["ai_recommendations_enabled"],
+                        "ai_recommendations": row["ai_recommendations"],
                         "created_at": row["created_at"].isoformat() if row["created_at"] else None,
-                        "target_date": row["target_date"].isoformat() if row["target_date"] else None,
-                        "start_date": row["start_date"].isoformat() if row["start_date"] else None
+                        "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None
                     }
                     for row in rows
                 ]

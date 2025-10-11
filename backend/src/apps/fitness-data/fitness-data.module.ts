@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FitnessDataService } from './fitness-data.service';
 import { FitnessDataController } from './fitness-data.controller';
-import { ActivityData, HeartRateData, SleepData, WeightData } from '../../entities';
+import { ActivityData, HeartRateData, SleepData, WeightData, UserGoals } from '../../entities';
 import { FitbitModule } from '../fitbit/fitbit.module';
 
 @Module({
@@ -12,6 +12,7 @@ import { FitbitModule } from '../fitbit/fitbit.module';
       HeartRateData,
       SleepData,
       WeightData,
+      UserGoals,
     ]),
     FitbitModule,
   ],

@@ -8,6 +8,7 @@ import { FitbitModule } from './apps/fitbit/fitbit.module';
 import { WhoopModule } from './apps/whoop/whoop.module';
 import { FitnessDataModule } from './apps/fitness-data/fitness-data.module';
 import { AiModule } from './apps/ai/ai.module';
+import { GoalsModule } from './apps/goals/goals.module';
 import { HealthModule } from './health/health.module';
 import { DeviceConnectionsModule } from './device-connections/device-connections.module';
 
@@ -23,6 +24,7 @@ import { DeviceConnectionsModule } from './device-connections/device-connections
     DeviceConnectionsModule,
     FitnessDataModule,
     AiModule,
+    GoalsModule,
     HealthModule,
   ],
 })

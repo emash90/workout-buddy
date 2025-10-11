@@ -76,6 +76,7 @@ async def get_daily_insight(user_id: Union[int, str] = Query(...)):
         # Get real data from database
         today_data = await agent.fitness_tools.get_today_data(user_id)
         weekly_data = await agent.fitness_tools.get_daily_data(user_id, 7)
+        user_goals_list = await agent.fitness_tools.get_goal_progress(user_id)
 
         if not today_data:
             today_data = {"steps": 0, "calories": 0}
@@ -83,10 +84,14 @@ async def get_daily_insight(user_id: Union[int, str] = Query(...)):
         if not weekly_data:
             weekly_data = []
 
+        # Get first goal if exists
+        user_goals = user_goals_list[0] if user_goals_list else None
+
         insight = agent.insights_tools.get_daily_insight(
             user_id=user_id,
             today_data=today_data,
-            weekly_data=weekly_data
+            weekly_data=weekly_data,
+            user_goals=user_goals
         )
 
         return insight

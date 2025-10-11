@@ -5,3 +5,4 @@ export { ActivityData } from './activity-data.entity';
 export { HeartRateData } from './heart-rate-data.entity';
 export { SleepData } from './sleep-data.entity';
 export { WeightData } from './weight-data.entity';
+export { UserGoals, FitnessGoal, ActivityLevel } from './user-goals.entity';

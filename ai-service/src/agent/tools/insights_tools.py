@@ -87,7 +87,7 @@ class InsightsTools:
 
         return " ".join(summary_parts)
 
-    def get_daily_insight(self, user_id: int, today_data: Dict, weekly_data: List[Dict]) -> Dict:
+    def get_daily_insight(self, user_id: int, today_data: Dict, weekly_data: List[Dict], user_goals: Dict = None) -> Dict:
         """
         Generate insight for today based on recent activity.
 
@@ -95,6 +95,7 @@ class InsightsTools:
             user_id: User's ID
             today_data: Today's fitness data
             weekly_data: Past week's data
+            user_goals: User's goals (optional)
 
         Returns:
             Today's insight
@@ -117,17 +118,23 @@ class InsightsTools:
         else:
             insights.append("📈 You're tracking close to your weekly average")
 
+        # Get user's step goal (default to 10,000 if not set)
+        steps_goal = 10000
+        if user_goals:
+            steps_goal = user_goals.get("daily_steps_goal", 10000)
+
         # Check if hit goal
-        if today_steps >= 10000:
-            insights.append("✅ You hit your 10,000 step goal today!")
+        if today_steps >= steps_goal:
+            insights.append(f"✅ You hit your {steps_goal:,} step goal today!")
         else:
-            remaining = 10000 - today_steps
+            remaining = steps_goal - today_steps
             insights.append(f"🎯 {remaining:,} more steps to hit your goal")
 
         return {
             "user_id": user_id,
             "date": datetime.now().isoformat(),
             "today_steps": today_steps,
+            "steps_goal": steps_goal,
             "weekly_average": int(weekly_avg),
             "comparison": comparison,
             "difference_percentage": round(diff_percentage, 1),

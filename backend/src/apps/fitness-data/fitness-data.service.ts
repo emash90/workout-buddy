@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
-import { ActivityData, HeartRateData, SleepData, WeightData } from '../../entities';
+import { ActivityData, HeartRateData, SleepData, WeightData, UserGoals } from '../../entities';
 import { FitbitService } from '../fitbit/fitbit.service';
 import { SyncResponseDto, DataType } from './dto';
 
@@ -18,6 +18,8 @@ export class FitnessDataService {
     private sleepRepo: Repository<SleepData>,
     @InjectRepository(WeightData)
     private weightRepo: Repository<WeightData>,
+    @InjectRepository(UserGoals)
+    private userGoalsRepo: Repository<UserGoals>,
     private fitbitService: FitbitService,
   ) {}
 
@@ -524,19 +526,21 @@ export class FitnessDataService {
       where: { userId, date: new Date(today) },
     });
 
-    // Get goals from raw data or use defaults
-    const goals = activity?.rawData?.goals || {};
+    // Fetch user's goals from database
+    const userGoals = await this.userGoalsRepo.findOne({
+      where: { userId },
+    });
 
     return {
       steps: activity?.steps || 0,
-      stepsGoal: goals.steps || 10000,
+      stepsGoal: userGoals?.dailyStepsGoal || 10000,
       calories: activity?.calories || 0,
-      caloriesGoal: goals.caloriesOut || 2500,
+      caloriesGoal: userGoals?.dailyCaloriesBurnGoal || 2500,
       activeMinutes: activity?.activeMinutes || 0,
-      activeMinutesGoal: goals.activeMinutes || 30,
+      activeMinutesGoal: userGoals?.dailyActiveMinutesGoal || 30,
       heartRate: heartRate?.restingHeartRate || 0,
       sleep: sleep?.minutesAsleep ? Math.round(sleep.minutesAsleep / 60) : 0,
-      sleepGoal: 8,
+      sleepGoal: userGoals?.dailySleepHoursGoal || 8,
     };
   }
 
@@ -548,19 +552,25 @@ export class FitnessDataService {
       where: { userId, date: today },
     });
 
-    const goals = activity?.rawData?.goals || {};
+    // Fetch user's goals from database
+    const userGoals = await this.userGoalsRepo.findOne({
+      where: { userId },
+    });
+
+    // Get goals from raw data for fields not in user_goals table
+    const rawGoals = activity?.rawData?.goals || {};
 
     return {
       steps: activity?.steps || 0,
-      stepsGoal: goals.steps || 10000,
+      stepsGoal: userGoals?.dailyStepsGoal || 10000,
       distance: parseFloat(activity?.distance?.toString() || '0'),
-      distanceGoal: goals.distance || 8,
+      distanceGoal: rawGoals.distance || 8,
       calories: activity?.calories || 0,
-      caloriesGoal: goals.caloriesOut || 2500,
+      caloriesGoal: userGoals?.dailyCaloriesBurnGoal || 2500,
       activeMinutes: activity?.activeMinutes || 0,
-      activeMinutesGoal: goals.activeMinutes || 30,
+      activeMinutesGoal: userGoals?.dailyActiveMinutesGoal || 30,
       floors: activity?.floors || 0,
-      floorsGoal: goals.floors || 10,
+      floorsGoal: rawGoals.floors || 10,
     };
   }
 
