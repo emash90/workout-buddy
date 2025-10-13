@@ -40,6 +40,8 @@ import {
 import { authService } from '../services/auth.service';
 import { fitbitService } from '../services/fitbitService';
 import type { FitbitConnectionStatus } from '../services/fitbitService';
+import { whoopService } from '../services/whoopService';
+import type { WhoopConnectionStatus } from '../services/whoopService';
 import {
   goalsService,
   FitnessGoal,
@@ -55,8 +57,14 @@ const Settings = () => {
   // Fitbit connection state
   const [fitbitStatus, setFitbitStatus] = useState<FitbitConnectionStatus | null>(null);
   const [isLoadingFitbit, setIsLoadingFitbit] = useState(true);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [isConnectingFitbit, setIsConnectingFitbit] = useState(false);
+  const [isDisconnectingFitbit, setIsDisconnectingFitbit] = useState(false);
+
+  // Whoop connection state
+  const [whoopStatus, setWhoopStatus] = useState<WhoopConnectionStatus | null>(null);
+  const [isLoadingWhoop, setIsLoadingWhoop] = useState(true);
+  const [isConnectingWhoop, setIsConnectingWhoop] = useState(false);
+  const [isDisconnectingWhoop, setIsDisconnectingWhoop] = useState(false);
 
   const handleLogout = () => {
     authService.logout();
@@ -104,10 +112,14 @@ const Settings = () => {
     aiRecommendationsEnabled: false,
   });
 
-  // Load Fitbit connection status
+  // Load device connection status
   useEffect(() => {
-    loadFitbitStatus();
+    loadDeviceStatus();
   }, []);
+
+  const loadDeviceStatus = async () => {
+    await Promise.all([loadFitbitStatus(), loadWhoopStatus()]);
+  };
 
   const loadFitbitStatus = async () => {
     try {
@@ -121,14 +133,26 @@ const Settings = () => {
     }
   };
 
+  const loadWhoopStatus = async () => {
+    try {
+      setIsLoadingWhoop(true);
+      const status = await whoopService.getConnectionStatus();
+      setWhoopStatus(status);
+    } catch (error) {
+      console.error('Failed to load Whoop status:', error);
+    } finally {
+      setIsLoadingWhoop(false);
+    }
+  };
+
   const handleConnectFitbit = async () => {
     try {
-      setIsConnecting(true);
+      setIsConnectingFitbit(true);
       await fitbitService.initiateConnection();
     } catch (error) {
       console.error('Failed to connect Fitbit:', error);
       alert('Failed to connect to Fitbit. Please try again.');
-      setIsConnecting(false);
+      setIsConnectingFitbit(false);
     }
   };
 
@@ -138,14 +162,44 @@ const Settings = () => {
     }
 
     try {
-      setIsDisconnecting(true);
+      setIsDisconnectingFitbit(true);
       await fitbitService.disconnect();
       setFitbitStatus({ connected: false });
+      await loadWhoopStatus(); // Reload Whoop status after disconnecting Fitbit
     } catch (error) {
       console.error('Failed to disconnect Fitbit:', error);
       alert('Failed to disconnect Fitbit. Please try again.');
     } finally {
-      setIsDisconnecting(false);
+      setIsDisconnectingFitbit(false);
+    }
+  };
+
+  const handleConnectWhoop = async () => {
+    try {
+      setIsConnectingWhoop(true);
+      await whoopService.initiateConnection();
+    } catch (error) {
+      console.error('Failed to connect Whoop:', error);
+      alert('Failed to connect to Whoop. Please try again.');
+      setIsConnectingWhoop(false);
+    }
+  };
+
+  const handleDisconnectWhoop = async () => {
+    if (!confirm('Are you sure you want to disconnect your Whoop device?')) {
+      return;
+    }
+
+    try {
+      setIsDisconnectingWhoop(true);
+      await whoopService.disconnect();
+      setWhoopStatus({ connected: false });
+      await loadFitbitStatus(); // Reload Fitbit status after disconnecting Whoop
+    } catch (error) {
+      console.error('Failed to disconnect Whoop:', error);
+      alert('Failed to disconnect Whoop. Please try again.');
+    } finally {
+      setIsDisconnectingWhoop(false);
     }
   };
 
@@ -1153,20 +1207,78 @@ const Settings = () => {
                     {fitbitStatus?.connected ? (
                       <button
                         onClick={handleDisconnectFitbit}
-                        disabled={isDisconnecting}
+                        disabled={isDisconnectingFitbit}
                         className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                       >
-                        {isDisconnecting && <Loader2 className="w-4 h-4 animate-spin" />}
-                        <span>{isDisconnecting ? 'Disconnecting...' : 'Disconnect'}</span>
+                        {isDisconnectingFitbit && <Loader2 className="w-4 h-4 animate-spin" />}
+                        <span>{isDisconnectingFitbit ? 'Disconnecting...' : 'Disconnect'}</span>
                       </button>
                     ) : (
                       <button
                         onClick={handleConnectFitbit}
-                        disabled={isConnecting || isLoadingFitbit}
+                        disabled={isConnectingFitbit || isLoadingFitbit || whoopStatus?.connected}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                       >
-                        {isConnecting && <Loader2 className="w-4 h-4 animate-spin" />}
-                        <span>{isConnecting ? 'Connecting...' : 'Connect'}</span>
+                        {isConnectingFitbit && <Loader2 className="w-4 h-4 animate-spin" />}
+                        <span>{isConnectingFitbit ? 'Connecting...' : 'Connect'}</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Whoop Device */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <Activity className="w-6 h-6 text-purple-600" />
+                      </div>
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <div className="font-medium text-gray-900">Whoop Device</div>
+                          {isLoadingWhoop ? (
+                            <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                          ) : whoopStatus?.connected ? (
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-gray-400" />
+                          )}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {isLoadingWhoop
+                            ? 'Loading...'
+                            : whoopStatus?.connected
+                            ? `Connected${
+                                whoopStatus.connectedAt
+                                  ? ` on ${new Date(whoopStatus.connectedAt).toLocaleDateString()}`
+                                  : ''
+                              }`
+                            : 'Not connected'}
+                        </div>
+                        {whoopStatus?.connected && whoopStatus.whoopUserId && (
+                          <div className="text-xs text-gray-400 mt-1">
+                            User ID: {whoopStatus.whoopUserId}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {whoopStatus?.connected ? (
+                      <button
+                        onClick={handleDisconnectWhoop}
+                        disabled={isDisconnectingWhoop}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                      >
+                        {isDisconnectingWhoop && <Loader2 className="w-4 h-4 animate-spin" />}
+                        <span>{isDisconnectingWhoop ? 'Disconnecting...' : 'Disconnect'}</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleConnectWhoop}
+                        disabled={isConnectingWhoop || isLoadingWhoop || fitbitStatus?.connected}
+                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                      >
+                        {isConnectingWhoop && <Loader2 className="w-4 h-4 animate-spin" />}
+                        <span>{isConnectingWhoop ? 'Connecting...' : 'Connect'}</span>
                       </button>
                     )}
                   </div>
@@ -1174,8 +1286,7 @@ const Settings = () => {
 
                 <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                   <p className="text-sm text-blue-900">
-                    Connect your Fitbit device to automatically sync your fitness data and get
-                    personalized insights.
+                    <strong>Note:</strong> You can only connect one device at a time. Connect your Fitbit or Whoop device to automatically sync your fitness data and get personalized insights.
                   </p>
                 </div>
               </div>

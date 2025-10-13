@@ -3,6 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { ActivityData, HeartRateData, SleepData, WeightData, UserGoals } from '../../entities';
 import { FitbitService } from '../fitbit/fitbit.service';
+import { WhoopService } from '../whoop/whoop.service';
+import { WhoopDataMapperService } from '../whoop/whoop-data-mapper.service';
+import { DeviceConnectionsService } from '../../device-connections/device-connections.service';
+import { FitnessProvider } from '../../device-connections/enums/provider.enum';
 import { SyncResponseDto, DataType } from './dto';
 
 @Injectable()
@@ -21,6 +25,9 @@ export class FitnessDataService {
     @InjectRepository(UserGoals)
     private userGoalsRepo: Repository<UserGoals>,
     private fitbitService: FitbitService,
+    private whoopService: WhoopService,
+    private whoopDataMapper: WhoopDataMapperService,
+    private deviceConnectionsService: DeviceConnectionsService,
   ) {}
 
   // ===== SYNC METHODS =====
@@ -42,6 +49,48 @@ export class FitnessDataService {
     const typesToSync = dataTypes || [DataType.ACTIVITY, DataType.HEART_RATE, DataType.SLEEP, DataType.WEIGHT];
 
     this.logger.log(`Starting sync for user ${userId} from ${start} to ${end}`);
+
+    // Check which provider the user has connected
+    const deviceConnection = await this.deviceConnectionsService.getConnectionStatus(userId);
+    const connectedProvider = deviceConnection?.connectedProvider;
+
+    this.logger.log(`User ${userId} connected provider: ${connectedProvider || 'none'}`);
+
+    const syncedRecords = {
+      activities: 0,
+      heartRate: 0,
+      sleep: 0,
+      weight: 0,
+    };
+
+    // Route to appropriate sync method based on provider
+    if (connectedProvider === FitnessProvider.WHOOP) {
+      return this.syncWhoopData(userId, start, end, typesToSync);
+    } else if (connectedProvider === FitnessProvider.FITBIT) {
+      return this.syncFitbitData(userId, start, end, typesToSync);
+    } else {
+      return {
+        success: false,
+        userId,
+        syncedRecords,
+        dateRange: { start, end },
+        duration: Date.now() - startTime,
+        errors: ['No fitness provider connected'],
+      };
+    }
+  }
+
+  /**
+   * Sync Fitbit data (existing logic)
+   */
+  private async syncFitbitData(
+    userId: string,
+    start: string,
+    end: string,
+    typesToSync: DataType[]
+  ): Promise<SyncResponseDto> {
+    const startTime = Date.now();
+    const errors: string[] = [];
 
     const syncedRecords = {
       activities: 0,
@@ -93,7 +142,85 @@ export class FitnessDataService {
     const duration = Date.now() - startTime;
     const totalRecords = Object.values(syncedRecords).reduce((sum, count) => sum + count, 0);
 
-    this.logger.log(`Sync completed for user ${userId}: ${totalRecords} records in ${duration}ms`);
+    this.logger.log(`Fitbit sync completed for user ${userId}: ${totalRecords} records in ${duration}ms`);
+
+    return {
+      success: errors.length === 0,
+      userId,
+      syncedRecords,
+      dateRange: { start, end },
+      duration,
+      errors: errors.length > 0 ? errors : undefined,
+    };
+  }
+
+  /**
+   * Sync Whoop data (new)
+   */
+  private async syncWhoopData(
+    userId: string,
+    start: string,
+    end: string,
+    typesToSync: DataType[]
+  ): Promise<SyncResponseDto> {
+    const startTime = Date.now();
+    const errors: string[] = [];
+
+    const syncedRecords = {
+      activities: 0,
+      heartRate: 0,
+      sleep: 0,
+      weight: 0,
+    };
+
+    // Convert dates to ISO 8601 format for Whoop API
+    const startISO = new Date(start).toISOString();
+    const endISO = new Date(end).toISOString();
+
+    // Sync activities (from cycles and workouts)
+    if (typesToSync.includes(DataType.ACTIVITY)) {
+      try {
+        syncedRecords.activities = await this.syncWhoopActivities(userId, startISO, endISO);
+      } catch (error) {
+        this.logger.error(`Whoop activity sync failed: ${error.message}`);
+        errors.push(`Whoop activity sync failed: ${error.message}`);
+      }
+    }
+
+    // Sync heart rate (from recovery data)
+    if (typesToSync.includes(DataType.HEART_RATE)) {
+      try {
+        syncedRecords.heartRate = await this.syncWhoopHeartRate(userId, startISO, endISO);
+      } catch (error) {
+        this.logger.error(`Whoop heart rate sync failed: ${error.message}`);
+        errors.push(`Whoop heart rate sync failed: ${error.message}`);
+      }
+    }
+
+    // Sync sleep
+    if (typesToSync.includes(DataType.SLEEP)) {
+      try {
+        syncedRecords.sleep = await this.syncWhoopSleep(userId, startISO, endISO);
+      } catch (error) {
+        this.logger.error(`Whoop sleep sync failed: ${error.message}`);
+        errors.push(`Whoop sleep sync failed: ${error.message}`);
+      }
+    }
+
+    // Sync weight (from body measurements)
+    if (typesToSync.includes(DataType.WEIGHT)) {
+      try {
+        syncedRecords.weight = await this.syncWhoopWeight(userId);
+      } catch (error) {
+        this.logger.error(`Whoop weight sync failed: ${error.message}`);
+        errors.push(`Whoop weight sync failed: ${error.message}`);
+      }
+    }
+
+    const duration = Date.now() - startTime;
+    const totalRecords = Object.values(syncedRecords).reduce((sum, count) => sum + count, 0);
+
+    this.logger.log(`Whoop sync completed for user ${userId}: ${totalRecords} records in ${duration}ms`);
 
     return {
       success: errors.length === 0,
@@ -572,6 +699,175 @@ export class FitnessDataService {
       floors: activity?.floors || 0,
       floorsGoal: rawGoals.floors || 10,
     };
+  }
+
+  // ===== WHOOP SYNC METHODS =====
+
+  /**
+   * Sync Whoop activities from cycles and workouts
+   */
+  private async syncWhoopActivities(userId: string, startISO: string, endISO: string): Promise<number> {
+    let syncedCount = 0;
+
+    try {
+      // Get cycles (daily summaries with strain)
+      const cyclesResponse = await this.whoopService.getCycles(userId, startISO, endISO);
+
+      // Get workouts for the same period
+      const workoutsResponse = await this.whoopService.getWorkouts(userId, startISO, endISO);
+
+      // Group workouts by date
+      const workoutsByDate = new Map<string, any[]>();
+      for (const workout of workoutsResponse.records) {
+        const date = new Date(workout.start).toISOString().split('T')[0];
+        if (!workoutsByDate.has(date)) {
+          workoutsByDate.set(date, []);
+        }
+        workoutsByDate.get(date)?.push(workout);
+      }
+
+      // Process each cycle
+      for (const cycle of cyclesResponse.records) {
+        const date = new Date(cycle.start).toISOString().split('T')[0];
+
+        // Map cycle to activity
+        const cycleActivity = this.whoopDataMapper.mapCycleToActivity(cycle, userId);
+
+        if (!cycleActivity) continue;
+
+        // Get workouts for this date
+        const dateWorkouts = workoutsByDate.get(date) || [];
+
+        // Map workouts to activities
+        const workoutActivities = dateWorkouts
+          .map(w => this.whoopDataMapper.mapWorkoutToActivity(w, userId))
+          .filter(a => a !== null);
+
+        // Aggregate cycle and workouts into single daily activity
+        const dailyActivity = this.whoopDataMapper.aggregateWorkoutsToDaily(
+          workoutActivities,
+          cycleActivity
+        );
+
+        if (dailyActivity) {
+          await this.activityRepo.upsert(dailyActivity, {
+            conflictPaths: ['userId', 'date'],
+            skipUpdateIfNoValuesChanged: true,
+          });
+          syncedCount++;
+        }
+      }
+
+      this.logger.log(`Synced ${syncedCount} Whoop activity records for user ${userId}`);
+    } catch (error) {
+      this.logger.error(`Error syncing Whoop activities: ${error.message}`);
+      throw error;
+    }
+
+    return syncedCount;
+  }
+
+  /**
+   * Sync Whoop heart rate from recovery data
+   */
+  private async syncWhoopHeartRate(userId: string, startISO: string, endISO: string): Promise<number> {
+    let syncedCount = 0;
+
+    try {
+      // Get recovery data
+      const recoveryResponse = await this.whoopService.getRecovery(userId, startISO, endISO);
+
+      // Get cycles to match recovery with dates
+      const cyclesResponse = await this.whoopService.getCycles(userId, startISO, endISO);
+
+      // Create cycle lookup map
+      const cycleMap = new Map();
+      cyclesResponse.records.forEach(cycle => {
+        cycleMap.set(cycle.id, cycle);
+      });
+
+      // Process each recovery record
+      for (const recovery of recoveryResponse.records) {
+        const cycle = cycleMap.get(recovery.cycle_id);
+
+        if (!cycle) continue;
+
+        const heartRateData = this.whoopDataMapper.mapRecoveryToHeartRate(recovery, cycle, userId);
+
+        if (heartRateData) {
+          await this.heartRateRepo.upsert(heartRateData, {
+            conflictPaths: ['userId', 'date'],
+            skipUpdateIfNoValuesChanged: true,
+          });
+          syncedCount++;
+        }
+      }
+
+      this.logger.log(`Synced ${syncedCount} Whoop heart rate records for user ${userId}`);
+    } catch (error) {
+      this.logger.error(`Error syncing Whoop heart rate: ${error.message}`);
+      throw error;
+    }
+
+    return syncedCount;
+  }
+
+  /**
+   * Sync Whoop sleep data
+   */
+  private async syncWhoopSleep(userId: string, startISO: string, endISO: string): Promise<number> {
+    let syncedCount = 0;
+
+    try {
+      const sleepResponse = await this.whoopService.getSleep(userId, startISO, endISO);
+
+      for (const sleep of sleepResponse.records) {
+        // Skip naps if desired (optional)
+        // if (sleep.nap) continue;
+
+        const sleepData = this.whoopDataMapper.mapSleepToSleepData(sleep, userId);
+
+        if (sleepData) {
+          await this.sleepRepo.upsert(sleepData, {
+            conflictPaths: ['userId', 'dateOfSleep'],
+            skipUpdateIfNoValuesChanged: true,
+          });
+          syncedCount++;
+        }
+      }
+
+      this.logger.log(`Synced ${syncedCount} Whoop sleep records for user ${userId}`);
+    } catch (error) {
+      this.logger.error(`Error syncing Whoop sleep: ${error.message}`);
+      throw error;
+    }
+
+    return syncedCount;
+  }
+
+  /**
+   * Sync Whoop weight from body measurements
+   */
+  private async syncWhoopWeight(userId: string): Promise<number> {
+    try {
+      const bodyMeasurement = await this.whoopService.getBodyMeasurement(userId);
+      const weightData = this.whoopDataMapper.mapBodyMeasurementToWeight(bodyMeasurement, userId);
+
+      if (weightData) {
+        await this.weightRepo.upsert(weightData, {
+          conflictPaths: ['userId', 'date'],
+          skipUpdateIfNoValuesChanged: true,
+        });
+
+        this.logger.log(`Synced Whoop weight for user ${userId}`);
+        return 1;
+      }
+    } catch (error) {
+      this.logger.error(`Error syncing Whoop weight: ${error.message}`);
+      throw error;
+    }
+
+    return 0;
   }
 
   // ===== HELPER METHODS =====

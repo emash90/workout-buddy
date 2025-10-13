@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Query,
   Request,
   Redirect,
@@ -187,5 +188,17 @@ export class WhoopController {
   async getBodyMeasurement(@Request() req: any) {
     const userId = req.user.userId;
     return this.whoopService.getBodyMeasurement(userId);
+  }
+
+  /**
+   * POST /whoop/disconnect
+   * Disconnect Whoop account
+   */
+  @Post('disconnect')
+  @UseGuards(JwtAuthGuard)
+  async disconnect(@Request() req: any): Promise<{ message: string }> {
+    const userId = req.user.userId;
+    await this.whoopService.deleteToken(userId);
+    return { message: 'Whoop disconnected successfully' };
   }
 }
